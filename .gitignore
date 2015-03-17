@@ -1,0 +1,9 @@
+*.js.map
+*.suo
+/bin/
+/example/*.js
+/obj/
+/src/*.js
+app.js
+example.js.map
+picolor.csproj.user

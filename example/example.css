@@ -1,0 +1,29 @@
+﻿body {
+	font-family: 'Segoe UI', sans-serif;
+	background-color: #E0E0E0;
+}
+
+span {
+	font-style: italic;
+}
+
+.picolor-container {
+	margin: 0px;
+	padding: 0px;
+	background-color: #E0E0E0;
+}
+
+.picolor-box {
+	width: 38px;
+	height: 24px;
+	display: inline-block;
+	margin: 0px 6px 3px 6px;
+	-webkit-box-shadow: inset 0px 0px 0px 1px #E0E0E0;
+	-moz-box-shadow: inset 0px 0px 0px 1px #E0E0E0;
+	box-shadow: inset 0px 0px 0px 1px #E0E0E0;
+}
+
+.picolor-box-selected {
+	border: 1px solid darkgray;
+	margin: -1px 5px 2px 5px;
+}
