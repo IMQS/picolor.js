@@ -38,7 +38,7 @@ module picolor {
 			// set defaults
 			this._color = chroma.hex('#ffffff');	// default = white
 			this._showBasicSelector = true;			// default = show basic selector
-			this._showColorWheel = false;			// default = hide color wheel
+			this._showColorWheel = true;			// default = hide color wheel
 
 			if (options)
 				this.setOptions(options);
@@ -53,7 +53,7 @@ module picolor {
 		private setOptions(options: SingleColorOptions) {
 			// change private members, editing public members causes premature redraw
 			if (options.color)
-				this._color = options.color; 
+				this._color = options.color;
 			this._showColorWheel = !!options.showColorWheel;
 			this._showBasicSelector = !!options.showColorWheel;
 		}
@@ -71,7 +71,7 @@ module picolor {
 		}
 		set showColorWheel(val: boolean) {
 			this._showColorWheel = val;
-			this.draw(); 
+			this.draw();
 		}
 
 		get showBasicSelector(): boolean {
@@ -79,7 +79,7 @@ module picolor {
 		}
 		set showBasicSelector(val: boolean) {
 			this._showBasicSelector = val;
-			this.draw(); 
+			this.draw();
 		}
 
 		draw() {
@@ -100,7 +100,7 @@ module picolor {
 				'		<div id="' + this.blackToWhiteBandDivID + '" style="margin-top: 6px"></div>' +
 				'	</div>' +
 				'	<div class="picolor-bottom-container">' +
-				'		<div id="' + this.colorWheelDivID + '"></div>' +
+				'		<canvas id="' + this.colorWheelDivID + '" class="picolor-wheel"></canvas>' +
 				'	</div>' +
 				'</div>';
 
@@ -110,46 +110,80 @@ module picolor {
 		}
 
 		private drawBasicSelector() {
-			var lightContent = '';
-			for (var i = 0; i < picolor.lightSpectrum.length; i++) {
-				var divID = this.colorBandDivID + '-0-' + i;
-				lightContent += '<div id="' + divID + '" class="picolor-box';
-				if (this.color.css() === picolor.lightSpectrum[i].css())
-					lightContent += ' picolor-box-selected';
-				lightContent += '" style="background-color:' + picolor.lightSpectrum[i].css() + '"></div>';
+			var genSpectrumContent = (spectrum: Chroma.Color[], containerID: string) => {
+				var content = '';
+				for (var i = 0; i < spectrum.length; i++) {
+					var divID = containerID + '-' + i;
+					content += '<div id="' + divID + '" class="picolor-box-container';
+					if (this.color.css() === spectrum[i].css())
+						content += ' picolor-box-container-selected';
+					content += '">';
+					content += '	<div class="picolor-box" style="background-color:' + spectrum[i].css() + '"></div>';
+					content += '</div>';
 
-				$('#' + this.containerDivID).on('click', '#' + divID, picolor.lightSpectrum[i], (ev) => { this.color = ev.data });
+					$('#' + this.containerDivID).on('click', '#' + divID, spectrum[i], (ev) => { this.color = ev.data });
+				}
+				$('#' + containerID).append(content);
 			}
 
-			var darkContent = '';
-			for (var i = 0; i < picolor.darkSpectrum.length; i++) {
-				var divID = this.colorBandDivID + '-1-' + i;
-				darkContent += '<div id="' + divID + '" class="picolor-box';
-				if (this.color.css() === picolor.darkSpectrum[i].css())
-					darkContent += ' picolor-box-selected';
-				darkContent += '" style="background-color:' + picolor.darkSpectrum[i].css() + '"></div>';
-				$('#' + this.containerDivID).on('click', '#' + divID, picolor.darkSpectrum[i], (ev) => { this.color = ev.data });
-			}
-
-			var blackWhiteContent = '';
+			var blackWhiteSpectrum = [];
 			var step = 0.2
-			for (var i = 0; i < 6; i++) {
-				var interpolatedColor = picolor.whiteToBlackInterpolator(i * step).css();
-				var divID = this.blackToWhiteBandDivID + '-' + i;
-				blackWhiteContent += '<div id="' + divID + '" class="picolor-box';
-				if (this.color.css() === interpolatedColor)
-					blackWhiteContent += ' picolor-box-selected';
-				blackWhiteContent += '" style="background-color:' + interpolatedColor + '"></div>';
-				$('#' + this.containerDivID).on('click', '#' + divID, picolor.whiteToBlackInterpolator(i * step), (ev) => { this.color = ev.data });
-			}
+			for (var i = 0; i < 6; i++)
+				blackWhiteSpectrum.push(picolor.whiteToBlackInterpolator(i * step));
 
-			$('#' + this.colorBandDivID + '-0').append(lightContent);
-			$('#' + this.colorBandDivID + '-1').append(darkContent);
-			$('#' + this.blackToWhiteBandDivID).append(blackWhiteContent);
+			genSpectrumContent(picolor.lightSpectrum, this.colorBandDivID + '-0');
+			genSpectrumContent(picolor.darkSpectrum, this.colorBandDivID + '-1');
+			genSpectrumContent(blackWhiteSpectrum, this.blackToWhiteBandDivID);
 		}
 
 		private drawColorWheel() {
-			// TODO
+			var el: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById(this.colorWheelDivID),
+				context = el.getContext('2d'),
+				width = 298,
+				height = 298,
+				cx = width / 2,
+				cy = height / 2,
+				radius = 120,
+				imageData,
+				pixels,
+				hue, sat, value,
+				l = 100, c, h, lch: Chroma.Color,
+				i = 0,
+				x, y, rx, ry, d,
+				f, g, p, u, v, w, rgb;
+
+			el.width = width;
+			el.height = height;
+
+			context.fillStyle = '#E0E0E0';
+			context.fillRect(0, 0, width, height);
+
+			imageData = context.createImageData(width, height);
+			pixels = imageData.data;
+
+			for (y = 0; y < height; y++) {
+				for (x = 0; x < width; x++, i += 4) {
+					rx = x - cx;
+					ry = y - cy;
+					d = rx * rx + ry * ry;
+					if (d < radius * radius) {
+						h = Math.atan2(ry, rx) * 180 / Math.PI;
+						if (h < 0) h += 360;
+						if (h > 360) h -= 360;
+						c = 100 * Math.sqrt(d) / radius;
+
+						lch = chroma.lch(l, c, h);
+						rgb = lch.rgb();
+
+						pixels[i] = rgb[0];
+						pixels[i + 1] = rgb[1];
+						pixels[i + 2] = rgb[2];
+						pixels[i + 3] = 255;
+					}
+				}
+			}
+
+			context.putImageData(imageData, 0, 0);
 		}
 	}
 
