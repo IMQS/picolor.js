@@ -33,12 +33,14 @@ module picolor {
 		private colorBandDivID: string;
 		private blackToWhiteBandDivID: string;
 		private colorWheelDivID: string;
+		private colorWheelLum: number;				// should this just be _color.lum ?
 
 		constructor(containerDivID: string, options?: SingleColorOptions) {
 			// set defaults
 			this._color = chroma.hex('#ffffff');	// default = white
 			this._showBasicSelector = true;			// default = show basic selector
 			this._showColorWheel = true;			// default = hide color wheel
+			this.colorWheelLum = 80;
 
 			if (options)
 				this.setOptions(options);
@@ -48,6 +50,13 @@ module picolor {
 			this.colorBandDivID = this.containerDivID + '-colorband';
 			this.blackToWhiteBandDivID = this.containerDivID + '-blacktowhiteband';
 			this.colorWheelDivID = this.containerDivID + '-colorwheel';
+
+			$('#' + this.containerDivID).off('click'); // Remove all old click handlers - if you don't do this it destroys performance
+
+			$('#' + this.containerDivID).on('mousemove', (ev) => {
+				this.colorWheelLum = (ev.clientY - 30) * 0.5;
+				this.draw();
+			});
 		}
 
 		private setOptions(options: SingleColorOptions) {
@@ -147,10 +156,10 @@ module picolor {
 				imageData,
 				pixels,
 				hue, sat, value,
-				l = 100, c, h, lch: Chroma.Color,
+				l = this.colorWheelLum, c, h, lch: Chroma.Color,
 				i = 0,
 				x, y, rx, ry, d,
-				f, g, p, u, v, w, rgb;
+				f, g, p, u, v, w;
 
 			el.width = width;
 			el.height = height;
@@ -165,25 +174,96 @@ module picolor {
 				for (x = 0; x < width; x++, i += 4) {
 					rx = x - cx;
 					ry = y - cy;
-					d = rx * rx + ry * ry;
-					if (d < radius * radius) {
+					d = Math.sqrt(rx * rx + ry * ry);
+					if (d < radius + 0.5) {
 						h = Math.atan2(ry, rx) * 180 / Math.PI;
 						if (h < 0) h += 360;
 						if (h > 360) h -= 360;
-						c = 100 * Math.sqrt(d) / radius;
+						c = 100 * d / radius;
+						var a = 255 * Math.max(0, radius - d);
 
-						lch = chroma.lch(l, c, h);
-						rgb = lch.rgb();
+						//lch = chroma.lch(l, c, h);
+						//rgb = lch.rgb();
+						var rgb = ColorUtils.lch2rgb(l, c, h);
 
 						pixels[i] = rgb[0];
 						pixels[i + 1] = rgb[1];
 						pixels[i + 2] = rgb[2];
-						pixels[i + 3] = 255;
+						pixels[i + 3] = a;
 					}
 				}
 			}
 
 			context.putImageData(imageData, 0, 0);
+		}
+
+	}
+
+	// This is a clone of some of the functions from chroma.js. We include it in here
+	// so that we can get good performance when rendering the color wheel canvas. An
+	// equivalent (and arguably better solution) would be to expose this functionality
+	// via chroma-js.d.ts
+	export class ColorUtils {
+		static lch2rgb(l: number, c: number, h: number) {
+			var L, a, b, g, r, _ref, _ref1;
+
+			_ref = this.lch2lab(l, c, h), L = _ref[0], a = _ref[1], b = _ref[2];
+			_ref1 = this.lab2rgb(L, a, b), r = _ref1[0], g = _ref1[1], b = _ref1[2];
+			return [this.limit(r, 0, 255), this.limit(g, 0, 255), this.limit(b, 0, 255)];
+		}
+
+		private static lch2lab(l, c, h) {
+			h = h * Math.PI / 180;
+			return [l, Math.cos(h) * c, Math.sin(h) * c];
+		}
+
+		private static lab2rgb(l, a, b) {
+			var K = 18;
+			var X = 0.950470;
+			var Y = 1;
+			var Z = 1.088830;
+
+			var g, r, x, y, z, _ref, _ref1;
+
+			if (l !== void 0 && l.length === 3) {
+				_ref = l, l = _ref[0], a = _ref[1], b = _ref[2];
+			}
+			if (l !== void 0 && l.length === 3) {
+				_ref1 = l, l = _ref1[0], a = _ref1[1], b = _ref1[2];
+			}
+			y = (l + 16) / 116;
+			x = y + a / 500;
+			z = y - b / 200;
+			x = this.lab_xyz(x) * X;
+			y = this.lab_xyz(y) * Y;
+			z = this.lab_xyz(z) * Z;
+			r = this.xyz_rgb(3.2404542 * x - 1.5371385 * y - 0.4985314 * z);
+			g = this.xyz_rgb(-0.9692660 * x + 1.8760108 * y + 0.0415560 * z);
+			b = this.xyz_rgb(0.0556434 * x - 0.2040259 * y + 1.0572252 * z);
+			return [this.limit(r, 0, 255), this.limit(g, 0, 255), this.limit(b, 0, 255), 1];
+		}
+
+		private static lab_xyz(x) {
+			if (x > 0.206893034) {
+				return x * x * x;
+			} else {
+				return (x - 4 / 29) / 7.787037;
+			}
+		}
+
+		private static xyz_rgb(r) {
+			return Math.round(255 * (r <= 0.00304 ? 12.92 * r : 1.055 * Math.pow(r, 1 / 2.4) - 0.055));
+		}
+
+		private static limit(x, min, max) {
+			// note: removed the null checks when copying from chroma.js
+			if (x < min) {
+				x = min;
+			}
+			if (x > max) {
+				x = max;
+			}
+			return x;
 		}
 	}
 
