@@ -1,4 +1,5 @@
 # picolor.js
+// TODO: this repo is still a work in progress
 JavaScript color picker controls optimized for picking map colors
 
 # Why not use a stock color picker?
