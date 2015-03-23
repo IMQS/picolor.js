@@ -33,14 +33,12 @@ module picolor {
 		private colorBandDivID: string;
 		private blackToWhiteBandDivID: string;
 		private colorWheelDivID: string;
-		private colorWheelLum: number;				// should this just be _color.lum ?
 
 		constructor(containerDivID: string, options?: SingleColorOptions) {
 			// set defaults
 			this._color = chroma.hex('#ffffff');	// default = white
 			this._showBasicSelector = true;			// default = show basic selector
 			this._showColorWheel = true;			// default = hide color wheel
-			this.colorWheelLum = 80;
 
 			if (options)
 				this.setOptions(options);
@@ -50,13 +48,6 @@ module picolor {
 			this.colorBandDivID = this.containerDivID + '-colorband';
 			this.blackToWhiteBandDivID = this.containerDivID + '-blacktowhiteband';
 			this.colorWheelDivID = this.containerDivID + '-colorwheel';
-
-			$('#' + this.containerDivID).off('click'); // Remove all old click handlers - if you don't do this it destroys performance
-
-			$('#' + this.containerDivID).on('mousemove', (ev) => {
-				this.colorWheelLum = (ev.clientY - 30) * 0.5;
-				this.draw();
-			});
 		}
 
 		private setOptions(options: SingleColorOptions) {
@@ -146,20 +137,20 @@ module picolor {
 		}
 
 		private drawColorWheel() {
-			var el: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById(this.colorWheelDivID),
-				context = el.getContext('2d'),
-				width = 298,
-				height = 298,
-				cx = width / 2,
-				cy = height / 2,
-				radius = 120,
-				imageData,
-				pixels,
-				hue, sat, value,
-				l = this.colorWheelLum, c, h, lch: Chroma.Color,
-				i = 0,
-				x, y, rx, ry, d,
-				f, g, p, u, v, w;
+			var el: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById(this.colorWheelDivID);
+			var context = el.getContext('2d');
+			var width = 298;
+			var height = 298;
+			var cx = width / 2;
+			var cy = height / 2;
+			var radius = 130;
+
+			var picked_lch = this.color.lch(); // selected color's lch value
+			if (picked_lch[2] < 0) picked_lch[2] += 360; // corrections for comparison
+			if (picked_lch[2] > 360) picked_lch[2] -= 360;
+
+			var picked_x, picked_y: number; // x and y coordinates of 
+			var picked_dist = 100;
 
 			el.width = width;
 			el.height = height;
@@ -167,24 +158,30 @@ module picolor {
 			context.fillStyle = '#E0E0E0';
 			context.fillRect(0, 0, width, height);
 
-			imageData = context.createImageData(width, height);
-			pixels = imageData.data;
+			var imageData = context.createImageData(width, height);
+			var pixels = imageData.data;
 
-			for (y = 0; y < height; y++) {
-				for (x = 0; x < width; x++, i += 4) {
-					rx = x - cx;
-					ry = y - cy;
-					d = Math.sqrt(rx * rx + ry * ry);
+			var i = 0;
+			for (var y = 0; y < height; y++) {
+				for (var x = 0; x < width; x++, i += 4) {
+					var rx = x - cx;
+					var ry = y - cy;
+					var d = Math.sqrt(rx * rx + ry * ry);
 					if (d < radius + 0.5) {
-						h = Math.atan2(ry, rx) * 180 / Math.PI;
+						var h = Math.atan2(ry, rx) * 180 / Math.PI;
 						if (h < 0) h += 360;
 						if (h > 360) h -= 360;
-						c = 100 * d / radius;
+						var c = 100 * d / radius;
 						var a = 255 * Math.max(0, radius - d);
 
-						//lch = chroma.lch(l, c, h);
-						//rgb = lch.rgb();
-						var rgb = ColorUtils.lch2rgb(l, c, h);
+						var rgb = chroma.lch2rgb(picked_lch[0], c, h);
+
+						var dist = Math.sqrt(Math.pow(c - picked_lch[1], 2) + Math.pow(h - picked_lch[2], 2));
+						if (dist < picked_dist) {
+							picked_dist = dist;
+							picked_x = x;
+							picked_y = y;
+						}
 
 						pixels[i] = rgb[0];
 						pixels[i + 1] = rgb[1];
@@ -195,75 +192,15 @@ module picolor {
 			}
 
 			context.putImageData(imageData, 0, 0);
-		}
 
-	}
-
-	// This is a clone of some of the functions from chroma.js. We include it in here
-	// so that we can get good performance when rendering the color wheel canvas. An
-	// equivalent (and arguably better solution) would be to expose this functionality
-	// via chroma-js.d.ts
-	export class ColorUtils {
-		static lch2rgb(l: number, c: number, h: number) {
-			var L, a, b, g, r, _ref, _ref1;
-
-			_ref = this.lch2lab(l, c, h), L = _ref[0], a = _ref[1], b = _ref[2];
-			_ref1 = this.lab2rgb(L, a, b), r = _ref1[0], g = _ref1[1], b = _ref1[2];
-			return [this.limit(r, 0, 255), this.limit(g, 0, 255), this.limit(b, 0, 255)];
-		}
-
-		private static lch2lab(l, c, h) {
-			h = h * Math.PI / 180;
-			return [l, Math.cos(h) * c, Math.sin(h) * c];
-		}
-
-		private static lab2rgb(l, a, b) {
-			var K = 18;
-			var X = 0.950470;
-			var Y = 1;
-			var Z = 1.088830;
-
-			var g, r, x, y, z, _ref, _ref1;
-
-			if (l !== void 0 && l.length === 3) {
-				_ref = l, l = _ref[0], a = _ref[1], b = _ref[2];
-			}
-			if (l !== void 0 && l.length === 3) {
-				_ref1 = l, l = _ref1[0], a = _ref1[1], b = _ref1[2];
-			}
-			y = (l + 16) / 116;
-			x = y + a / 500;
-			z = y - b / 200;
-			x = this.lab_xyz(x) * X;
-			y = this.lab_xyz(y) * Y;
-			z = this.lab_xyz(z) * Z;
-			r = this.xyz_rgb(3.2404542 * x - 1.5371385 * y - 0.4985314 * z);
-			g = this.xyz_rgb(-0.9692660 * x + 1.8760108 * y + 0.0415560 * z);
-			b = this.xyz_rgb(0.0556434 * x - 0.2040259 * y + 1.0572252 * z);
-			return [this.limit(r, 0, 255), this.limit(g, 0, 255), this.limit(b, 0, 255), 1];
-		}
-
-		private static lab_xyz(x) {
-			if (x > 0.206893034) {
-				return x * x * x;
-			} else {
-				return (x - 4 / 29) / 7.787037;
-			}
-		}
-
-		private static xyz_rgb(r) {
-			return Math.round(255 * (r <= 0.00304 ? 12.92 * r : 1.055 * Math.pow(r, 1 / 2.4) - 0.055));
-		}
-
-		private static limit(x, min, max) {
-			// note: removed the null checks when copying from chroma.js
-			if (x < min) {
-				x = min;
-			}
-			if (x > max) {
-				x = max;
-			}
-			return x;
+			context.beginPath();
+			context.arc(picked_x, picked_y, 3, 0, 2 * Math.PI, false);
+			context.lineWidth = 1;
+			if (picked_lch[0] > 50)
+				context.strokeStyle = '#0f0f0f';
+			else
+				context.strokeStyle = '#efefef';
+			context.stroke();
 		}
 	}
 
