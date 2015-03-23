@@ -114,6 +114,8 @@ declare module Chroma {
 		luminance(color: Color): number;
 		luminance(color: string): number;
 
+		lch2rgb(l, c, h): number[]; // returns [r, g, b] 
+
 		/**
 		 * Creates a color scale using a pre-defined color scale.
 		 *

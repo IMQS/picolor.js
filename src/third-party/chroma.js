@@ -100,6 +100,10 @@
     return chroma(color).luminance();
   };
 
+  chroma.lch2rgb = function (l, c, h) {
+  	return lch2rgb(l, c, h);
+  };
+
   chroma._Color = Color;
 
   /**
