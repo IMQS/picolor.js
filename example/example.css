@@ -72,6 +72,13 @@ span {
 	padding: 0px;
 	background-color: #E0E0E0;
 	padding: 5px 0px;
+
+	-webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .picolor-bottom-container {
@@ -86,12 +93,12 @@ span {
 	display: inline-block;
 	padding: 1px;
 	background-color: #E0E0E0;
-	margin: 0px 5px 0px 5px;
-	border: 1px solid #E0E0E0;
+	margin: 0px 4px 0px 4px;
+	border: 2px solid #E0E0E0;
 }
 
 .picolor-box-container-selected {
-	border: 1px solid darkgray;
+	border: 2px solid black;
 }
 
 .picolor-box {
@@ -101,7 +108,4 @@ span {
 .picolor-wheel {
 	width: 298px;
 	height: 298px;
-	
-	-moz-filter: blur(1px);
-	filter: blur(1px);
 }

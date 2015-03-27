@@ -4,6 +4,7 @@ module picolor {
 		color?: Chroma.Color;
 		showBasicSelctor?: boolean;
 		showColorWheel?: boolean;
+		showLabels?: boolean;
 	}
 
 	// 6 colors of with light and dark variations of each
@@ -26,9 +27,11 @@ module picolor {
 	export var whiteToBlackInterpolator = chroma.interpolate.bezier(['white', 'black']);
 
 	export class SingleColor {
-		private _color: Chroma.Color;
+		private _lch: number[];
+		private _alpha: number;
 		private _showBasicSelector: boolean;
 		private _showColorWheel: boolean;
+		private _showLabels: boolean;
 		private containerDivID: string;
 		private colorBandDivID: string;
 		private blackToWhiteBandDivID: string;
@@ -36,9 +39,11 @@ module picolor {
 
 		constructor(containerDivID: string, options?: SingleColorOptions) {
 			// set defaults
-			this._color = chroma.hex('#ffffff');	// default = white
-			this._showBasicSelector = true;			// default = show basic selector
-			this._showColorWheel = true;			// default = hide color wheel
+			this._lch = chroma.hex('#ffffff').lch();	// default = white
+			this._alpha = 255;							// default = opaque
+			this._showBasicSelector = true;				// default = show basic selector
+			this._showColorWheel = false;				// default = hide color wheel
+			this._showLabels = false;					// default = hide labels
 
 			if (options)
 				this.setOptions(options);
@@ -52,18 +57,37 @@ module picolor {
 
 		private setOptions(options: SingleColorOptions) {
 			// change private members, editing public members causes premature redraw
-			if (options.color)
-				this._color = options.color;
+			if (options.color) {
+				this._lch = options.color.lch();
+				this._alpha = options.color.alpha();
+			}
 			this._showColorWheel = !!options.showColorWheel;
+			this._showLabels = !!options.showLabels;
 			this._showBasicSelector = !!options.showColorWheel;
 		}
 
-		get color(): Chroma.Color {
-			return this._color;
+		get lch(): number[] {
+			return this._lch;
 		}
-		set color(val: Chroma.Color) {
-			this._color = val;
-			this.draw(); // redraw control if other color is selected via UI or programatically
+		set lch(val: number[]) {
+			// Constrain chroma : 0 <= c < 360
+			if (val[2] < 0) val[2] += 360;
+			if (val[2] >= 360) val[2] -= 360;
+
+			this._lch = val;
+			this.draw(); // redraw control
+		}
+
+		get alpha(): number {
+			return this._alpha;
+		}
+		set alpha(val: number) {
+			this._alpha = val;
+			this.draw(); // redraw control
+		}
+
+		getColor(): Chroma.Color {
+			return chroma.lch(this.lch[0], this.lch[1], this.lch[2]);
 		}
 
 		get showColorWheel(): boolean {
@@ -71,6 +95,14 @@ module picolor {
 		}
 		set showColorWheel(val: boolean) {
 			this._showColorWheel = val;
+			this.draw();
+		}
+
+		get showLabels(): boolean {
+			return this._showLabels;
+		}
+		set showLabels(val: boolean) {
+			this._showLabels = val;
 			this.draw();
 		}
 
@@ -110,18 +142,21 @@ module picolor {
 		}
 
 		private drawBasicSelector() {
+			// TODO: rather use canvas to draw blocks and add checkerbox to indicate transparency
+			// TODO: add scaling based on container size rather than harcoded size
+
 			var genSpectrumContent = (spectrum: Chroma.Color[], containerID: string) => {
 				var content = '';
 				for (var i = 0; i < spectrum.length; i++) {
 					var divID = containerID + '-' + i;
 					content += '<div id="' + divID + '" class="picolor-box-container';
-					if (this.color.css() === spectrum[i].css())
+					if (this.getColor().css() === spectrum[i].css())
 						content += ' picolor-box-container-selected';
 					content += '">';
 					content += '	<div class="picolor-box" style="background-color:' + spectrum[i].css() + '"></div>';
 					content += '</div>';
 
-					$('#' + this.containerDivID).on('click', '#' + divID, spectrum[i], (ev) => { this.color = ev.data });
+					$('#' + this.containerDivID).on('click', '#' + divID, spectrum[i].lch(), (ev) => { this.lch = ev.data });
 				}
 				$('#' + containerID).append(content);
 			}
@@ -137,30 +172,26 @@ module picolor {
 		}
 
 		private drawColorWheel() {
+			// TODO: add scaling based on container size rather than hardcoded size
+
 			var el: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById(this.colorWheelDivID);
 			var context = el.getContext('2d');
 			var width = 298;
 			var height = 298;
 			var cx = width / 2;
 			var cy = height / 2;
-			var radius = 130;
+			var radius = 119;
 
-			var picked_lch = this.color.lch(); // selected color's lch value
-			if (picked_lch[2] < 0) picked_lch[2] += 360; // corrections for comparison
-			if (picked_lch[2] > 360) picked_lch[2] -= 360;
-
-			var picked_x, picked_y: number; // x and y coordinates of 
-			var picked_dist = 100;
+			var picked_x, picked_y: number; // canvas coordinates of picked color
+			var picked_dist = Number.MAX_VALUE;
 
 			el.width = width;
 			el.height = height;
 
-			context.fillStyle = '#E0E0E0';
-			context.fillRect(0, 0, width, height);
-
 			var imageData = context.createImageData(width, height);
 			var pixels = imageData.data;
 
+			// draw wheel
 			var i = 0;
 			for (var y = 0; y < height; y++) {
 				for (var x = 0; x < width; x++, i += 4) {
@@ -168,39 +199,162 @@ module picolor {
 					var ry = y - cy;
 					var d = Math.sqrt(rx * rx + ry * ry);
 					if (d < radius + 0.5) {
+
+						// get foreground color
 						var h = Math.atan2(ry, rx) * 180 / Math.PI;
 						if (h < 0) h += 360;
 						if (h > 360) h -= 360;
 						var c = 100 * d / radius;
-						var a = 255 * Math.max(0, radius - d);
 
-						var rgb = chroma.lch2rgb(picked_lch[0], c, h);
+						var rgb = chroma.lch2rgb(this.lch[0], c, h);
 
-						var dist = Math.sqrt(Math.pow(c - picked_lch[1], 2) + Math.pow(h - picked_lch[2], 2));
+						var dist = Math.sqrt(Math.pow(c - this.lch[1], 2) + Math.pow(h - this.lch[2], 2));
 						if (dist < picked_dist) {
 							picked_dist = dist;
 							picked_x = x;
 							picked_y = y;
 						}
 
-						pixels[i] = rgb[0];
-						pixels[i + 1] = rgb[1];
-						pixels[i + 2] = rgb[2];
-						pixels[i + 3] = a;
+						var f_a = this.alpha;
+						var f_r = rgb[0];
+						var f_g = rgb[1];
+						var f_b = rgb[2];
+
+						// get background checkerbox to display alpha
+						var horz = (Math.floor(x / 5) % 2 == 0);
+						var vert = (Math.floor(y / 5) % 2 == 0);
+						var val = (horz && !vert) || (!horz && vert) ? 250 : 200;
+						var b_r = val;
+						var b_g = val;
+						var b_b = val;
+
+						// blend foreground and background
+						pixels[i] = (f_r * f_a / 255) + (b_r * (1 - f_a / 255));
+						pixels[i + 1] = (f_g * f_a / 255) + (b_g * (1 - f_a / 255));
+						pixels[i + 2] = (f_b * f_a / 255) + (b_b * (1 - f_a / 255));
+
+						// anti-alias
+						pixels[i + 3] = 255 * Math.max(0, radius - d);
 					}
+				}
+			}
+
+			// draw lightness slider
+			i = 0;
+			for (var y = 0; y < height; y++) {
+				for (var x = 0; x < width; x++, i += 4) {
+					if (y < 30 || y > height - 30) continue;
+					if (x < 2 || x > 15) continue;
+
+					var l = 100 - 100 * (y - 30) / (height - 60);
+					var rgb = chroma.lch2rgb(l, this.lch[1], this.lch[2]);
+					pixels[i] = rgb[0];
+					pixels[i + 1] = rgb[1];
+					pixels[i + 2] = rgb[2];
+					pixels[i + 3] = 255;
+				}
+			}
+
+			// draw tranparency slider
+			i = 0;
+			var rgb = chroma.lch2rgb(this.lch[0], this.lch[1], this.lch[2]);
+			for (var y = 0; y < height; y++) {
+				for (var x = 0; x < width; x++, i += 4) {
+					if (y < 30 || y > height - 30) continue;
+					if (x < width - 16 || x > width - 3) continue;
+
+					// foreground alpha
+					var f_a = 255 - 255 * (y - 30) / (height - 60);
+					var f_r = rgb[0];
+					var f_g = rgb[1];
+					var f_b = rgb[2];
+
+					// background checkerbox
+					var horz = (Math.floor(x / 5) % 2 == 0);
+					var vert = (Math.floor(y / 5) % 2 == 0);
+					var val = (horz && !vert) || (!horz && vert) ? 250 : 200;
+					var b_r = val;
+					var b_g = val;
+					var b_b = val;
+
+					// blend foreground and background
+					pixels[i] = (f_r * f_a/255) + (b_r * (1 - f_a/255));
+					pixels[i + 1] = (f_g * f_a / 255) + (b_g * (1 - f_a / 255));
+					pixels[i + 2] = (f_b * f_a / 255) + (b_b * (1 - f_a / 255));
+					pixels[i + 3] = 255;
 				}
 			}
 
 			context.putImageData(imageData, 0, 0);
 
+			// draw circle around selected color in wheel
 			context.beginPath();
-			context.arc(picked_x, picked_y, 3, 0, 2 * Math.PI, false);
-			context.lineWidth = 1;
-			if (picked_lch[0] > 50)
-				context.strokeStyle = '#0f0f0f';
+			context.lineWidth = 2;
+			if (this.lch[0] > 50)
+				context.strokeStyle = '#0f0f0f'; // for light wheel
 			else
-				context.strokeStyle = '#efefef';
+				context.strokeStyle = '#efefef'; // for dark wheel
+			context.arc(picked_x, picked_y, 3, 0, 2 * Math.PI, false);
 			context.stroke();
+
+			// draw rectangle around selected color in lightness slider
+			context.beginPath();
+			var lightnessY = Math.min(height - 35, 30 + (100 - this.lch[0]) / 100 * (height - 60));
+			context.rect(1, lightnessY, 16, 5);
+			context.stroke();
+
+			// draw rectangle around selected tranparency
+			context.beginPath();
+			if (this.alpha < 128)
+				context.strokeStyle = '#0f0f0f'; 
+			var alphaY = Math.min(height - 35, 30 + (1 - this.alpha / 255) * (height - 60));
+			context.rect(width - 17, alphaY, 16, 5);
+			context.stroke();
+
+			if (this.showLabels) {
+				// TODO: make text font and text configurable
+
+				// light/dark labels
+				context.fillStyle = '#818181';
+				context.font = "10px sans-serif";
+				context.fillText("Dark", 20, height - 30);
+				context.textBaseline = "top";
+				context.fillText("Light", 20, 30);
+
+				// opaque/transparent labels
+				context.textAlign = "end";
+				context.fillText("Opaque", width - 21, 30);
+				context.textBaseline = "bottom";
+				context.fillText("Transparent", width - 21, height - 30);
+			}
+
+			$('#' + this.containerDivID).on('click', '#' + this.colorWheelDivID, { ctx: context }, (ev) => {
+				var offset = $(ev.target).offset();
+				var x = ev.pageX - offset.left;
+				var y = ev.pageY - offset.top;
+
+				// check if click is inside wheel
+				var rx = x - cx;
+				var ry = y - cy;
+				var d = Math.sqrt(rx * rx + ry * ry);
+				if (d < radius) {
+					// keep l constant when we select another color on the wheel
+					var h = Math.atan2(ry, rx) * 180 / Math.PI;
+					var c = 100 * d / radius;
+					this.lch = [this.lch[0], c, h];
+				}
+
+				// inside lightness slider
+				if (y >= 30 && y <= height - 30 && x >= -2 && x <= 24) {
+					var l = 100 - (y - 30) / (height - 60) * 100;
+					this.lch = [l, this.lch[1], this.lch[2]];
+				}
+
+				// inside transparency slider
+				if (y >= 30 && y <= height - 30 && x >= width - 25 && x <= width + 1) {
+					this.alpha = 255 - 255 * (y - 30) / (height - 60);
+				}
+			});
 		}
 	}
 
