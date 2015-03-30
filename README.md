@@ -6,9 +6,7 @@ Picking suitable colors for maps are hard, especially when it comes to selecting
 
 # TODO  
 - Palette picker  
-- Drag-interaction on sliders and color wheel  
 - Remove JQuery dependency  
-- Produce minified js lib  
 - Extend example  
 
 # Useful links

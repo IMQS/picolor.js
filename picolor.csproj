@@ -21,6 +21,7 @@
     <Content Include="example\example.css" />
     <Content Include="index.html" />
     <Content Include="src\third-party\chroma.js" />
+    <Content Include="src\third-party\chroma.min.js" />
     <Content Include="src\third-party\jquery-2.0.3.js" />
     <Content Include="src\third-party\jquery-2.0.3.min.js" />
     <Content Include="web.config" />

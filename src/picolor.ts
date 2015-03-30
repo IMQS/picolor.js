@@ -71,15 +71,31 @@ module picolor {
 			this.blackToWhiteBandDivID = this.containerDivID + '-blacktowhiteband';
 			this.colorWheelDivID = this.containerDivID + '-colorwheel';
 
+			// add DOM structure 
+			var content =
+				'<div class="picolor-container">' +
+				'	<div class="picolor-top-container">' +
+				'		<div id="' + this.colorBandDivID + '-0' + '"></div>' +
+				'		<div id="' + this.colorBandDivID + '-1' + '"></div>' +
+				'		<div id="' + this.blackToWhiteBandDivID + '" style="margin-top: 6px"></div>' +
+				'	</div>' +
+				'	<div class="picolor-bottom-container">' +
+				'		<canvas id="' + this.colorWheelDivID + '" class="picolor-wheel"></canvas>' +
+				'	</div>' +
+				'</div>';
+
+			var container = $('#' + this.containerDivID);
+			container.empty();
+			container.append(content);
+
 			// hook up event handlers
-			$('#' + this.containerDivID).on('mouseup', '#' + this.colorWheelDivID, this.onColorWheelMouseUp.bind(this));
-
-			$('#' + this.containerDivID).on('mousedown', '#' + this.colorWheelDivID, (ev) => {
-				this.onColorWheelMouseDown(ev);
-				this.onColorWheelMouseMove(ev); 				
+			$('#' + this.colorWheelDivID).mouseleave(this.setWheelDragStateOff.bind(this));
+			$('#' + this.colorWheelDivID).mouseup(this.setWheelDragStateOff.bind(this));
+			$('#' + this.colorWheelDivID).mousedown((ev) => {
+				this.setWheelDragStateOn(ev);
+				this.setWheelColor(ev); 				
 			});
-
-			$('#' + this.containerDivID).on('mousemove', '#' + this.colorWheelDivID, this.onColorWheelMouseMove.bind(this));
+			$('#' + this.colorWheelDivID).mousemove(this.setWheelColor.bind(this));
 		}
 
 		private setOptions(options: SingleColorOptions) {
@@ -93,7 +109,7 @@ module picolor {
 			this._showBasicSelector = !!options.showColorWheel;
 		}
 
-		private onColorWheelMouseDown(ev) {
+		private setWheelDragStateOn(ev) {
 			var x = ev.pageX - this.offset.left;
 			var y = ev.pageY - this.offset.top;
 
@@ -116,9 +132,9 @@ module picolor {
 			}
 		}
 
-		private onColorWheelMouseMove(ev) {
+		private setWheelColor(ev) {
 			if (!this.isDraggingAlpha && !this.isDraggingColor && !this.isDraggingLightness) return;
-
+			
 			var x = ev.pageX - this.offset.left;
 			var y = ev.pageY - this.offset.top;
 
@@ -146,7 +162,7 @@ module picolor {
 			}
 		}
 
-		private onColorWheelMouseUp(ev) {
+		private setWheelDragStateOff(ev) {
 			this.isDraggingAlpha = false;
 			this.isDraggingColor = false;
 			this.isDraggingLightness = false;
@@ -201,8 +217,6 @@ module picolor {
 		}
 
 		draw() {
-			this.drawContainerStructure();
-
 			// Remove all old click handlers - if you don't do this it destroys performance
 			$('#' + this.containerDivID).off('click');
 
@@ -210,24 +224,6 @@ module picolor {
 				this.drawBasicSelector();
 			if (this.showColorWheel)
 				this.drawColorWheel();
-		}
-
-		private drawContainerStructure() {
-			var content =
-				'<div class="picolor-container">' +
-				'	<div class="picolor-top-container">' +
-				'		<div id="' + this.colorBandDivID + '-0' + '"></div>' +
-				'		<div id="' + this.colorBandDivID + '-1' + '"></div>' +
-				'		<div id="' + this.blackToWhiteBandDivID + '" style="margin-top: 6px"></div>' +
-				'	</div>' +
-				'	<div class="picolor-bottom-container">' +
-				'		<canvas id="' + this.colorWheelDivID + '" class="picolor-wheel"></canvas>' +
-				'	</div>' +
-				'</div>';
-
-			var container = $('#' + this.containerDivID);
-			container.empty();
-			container.append(content);
 		}
 
 		private drawBasicSelector() {
@@ -247,6 +243,7 @@ module picolor {
 
 					$('#' + this.containerDivID).on('click', '#' + divID, spectrum[i].lch(), (ev) => { this.lch = ev.data });
 				}
+				$('#' + containerID).empty();
 				$('#' + containerID).append(content);
 			}
 
