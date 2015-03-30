@@ -36,6 +36,16 @@ module picolor {
 		private colorBandDivID: string;
 		private blackToWhiteBandDivID: string;
 		private colorWheelDivID: string;
+		private isDraggingLightness: boolean;
+		private isDraggingColor: boolean;
+		private isDraggingAlpha: boolean;
+
+		private width: number;
+		private height: number;
+		private cx: number;
+		private cy: number;
+		private radius: number;
+		private offset: JQueryCoordinates;
 
 		constructor(containerDivID: string, options?: SingleColorOptions) {
 			// set defaults
@@ -45,6 +55,13 @@ module picolor {
 			this._showColorWheel = false;				// default = hide color wheel
 			this._showLabels = false;					// default = hide labels
 
+			// defaults
+			this.width = 298;
+			this.height = 298;
+			this.cx = this.width / 2;
+			this.cy = this.height / 2;
+			this.radius = 119;
+
 			if (options)
 				this.setOptions(options);
 
@@ -53,6 +70,16 @@ module picolor {
 			this.colorBandDivID = this.containerDivID + '-colorband';
 			this.blackToWhiteBandDivID = this.containerDivID + '-blacktowhiteband';
 			this.colorWheelDivID = this.containerDivID + '-colorwheel';
+
+			// hook up event handlers
+			$('#' + this.containerDivID).on('mouseup', '#' + this.colorWheelDivID, this.onColorWheelMouseUp.bind(this));
+
+			$('#' + this.containerDivID).on('mousedown', '#' + this.colorWheelDivID, (ev) => {
+				this.onColorWheelMouseDown(ev);
+				this.onColorWheelMouseMove(ev); 				
+			});
+
+			$('#' + this.containerDivID).on('mousemove', '#' + this.colorWheelDivID, this.onColorWheelMouseMove.bind(this));
 		}
 
 		private setOptions(options: SingleColorOptions) {
@@ -64,6 +91,65 @@ module picolor {
 			this._showColorWheel = !!options.showColorWheel;
 			this._showLabels = !!options.showLabels;
 			this._showBasicSelector = !!options.showColorWheel;
+		}
+
+		private onColorWheelMouseDown(ev) {
+			var x = ev.pageX - this.offset.left;
+			var y = ev.pageY - this.offset.top;
+
+			// check if click is inside wheel
+			var rx = x - this.cx;
+			var ry = y - this.cy;
+			var d = Math.sqrt(rx * rx + ry * ry);
+			if (d < this.radius) {
+				this.isDraggingColor = true;
+			}
+
+			// inside lightness slider
+			if (y >= 30 && y <= this.height - 30 && x >= -2 && x <= 24) {
+				this.isDraggingLightness = true;
+			}
+
+			// inside transparency slider
+			if (y >= 30 && y <= this.height - 30 && x >= this.width - 25 && x <= this.width + 1) {
+				this.isDraggingAlpha = true;
+			}
+		}
+
+		private onColorWheelMouseMove(ev) {
+			if (!this.isDraggingAlpha && !this.isDraggingColor && !this.isDraggingLightness) return;
+
+			var x = ev.pageX - this.offset.left;
+			var y = ev.pageY - this.offset.top;
+
+			// check if click is inside wheel
+			if (this.isDraggingColor) {
+				var rx = x - this.cx;
+				var ry = y - this.cy;
+				var d = Math.min(this.radius, Math.sqrt(rx * rx + ry * ry));
+				
+				// keep l constant when we select another color on the wheel
+				var h = Math.atan2(ry, rx) * 180 / Math.PI;
+				var c = 100 * d / this.radius;
+				this.lch = [this.lch[0], c, h];
+			}
+
+			// inside lightness slider
+			if (this.isDraggingLightness) {
+				var l = Math.max(0, Math.min(100, 100 - (y - 30) / (this.height - 60) * 100));
+				this.lch = [l, this.lch[1], this.lch[2]];
+			}
+
+			// inside transparency slider
+			if (this.isDraggingAlpha) {
+				this.alpha = Math.max(0, Math.min(255, 255 - 255 * (y - 30) / (this.height - 60)));
+			}
+		}
+
+		private onColorWheelMouseUp(ev) {
+			this.isDraggingAlpha = false;
+			this.isDraggingColor = false;
+			this.isDraggingLightness = false;
 		}
 
 		get lch(): number[] {
@@ -116,7 +202,10 @@ module picolor {
 
 		draw() {
 			this.drawContainerStructure();
-			$('#' + this.containerDivID).off('click'); // Remove all old click handlers - if you don't do this it destroys performance
+
+			// Remove all old click handlers - if you don't do this it destroys performance
+			$('#' + this.containerDivID).off('click');
+
 			if (this.showBasicSelector)
 				this.drawBasicSelector();
 			if (this.showColorWheel)
@@ -174,37 +263,34 @@ module picolor {
 		private drawColorWheel() {
 			// TODO: add scaling based on container size rather than hardcoded size
 
+			this.offset = $('#' + this.colorWheelDivID).offset();
+
 			var el: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById(this.colorWheelDivID);
 			var context = el.getContext('2d');
-			var width = 298;
-			var height = 298;
-			var cx = width / 2;
-			var cy = height / 2;
-			var radius = 119;
 
 			var picked_x, picked_y: number; // canvas coordinates of picked color
 			var picked_dist = Number.MAX_VALUE;
 
-			el.width = width;
-			el.height = height;
+			el.width = this.width;
+			el.height = this.height;
 
-			var imageData = context.createImageData(width, height);
+			var imageData = context.createImageData(this.width, this.height);
 			var pixels = imageData.data;
 
 			// draw wheel
 			var i = 0;
-			for (var y = 0; y < height; y++) {
-				for (var x = 0; x < width; x++, i += 4) {
-					var rx = x - cx;
-					var ry = y - cy;
+			for (var y = 0; y < this.height; y++) {
+				for (var x = 0; x < this.width; x++, i += 4) {
+					var rx = x - this.cx;
+					var ry = y - this.cy;
 					var d = Math.sqrt(rx * rx + ry * ry);
-					if (d < radius + 0.5) {
+					if (d < this.radius + 0.5) {
 
 						// get foreground color
 						var h = Math.atan2(ry, rx) * 180 / Math.PI;
 						if (h < 0) h += 360;
 						if (h > 360) h -= 360;
-						var c = 100 * d / radius;
+						var c = 100 * d / this.radius;
 
 						var rgb = chroma.lch2rgb(this.lch[0], c, h);
 
@@ -234,19 +320,19 @@ module picolor {
 						pixels[i + 2] = (f_b * f_a / 255) + (b_b * (1 - f_a / 255));
 
 						// anti-alias
-						pixels[i + 3] = 255 * Math.max(0, radius - d);
+						pixels[i + 3] = 255 * Math.max(0, this.radius - d);
 					}
 				}
 			}
 
 			// draw lightness slider
 			i = 0;
-			for (var y = 0; y < height; y++) {
-				for (var x = 0; x < width; x++, i += 4) {
-					if (y < 30 || y > height - 30) continue;
+			for (var y = 0; y < this.height; y++) {
+				for (var x = 0; x < this.width; x++, i += 4) {
+					if (y < 30 || y > this.height - 30) continue;
 					if (x < 2 || x > 15) continue;
 
-					var l = 100 - 100 * (y - 30) / (height - 60);
+					var l = 100 - 100 * (y - 30) / (this.height - 60);
 					var rgb = chroma.lch2rgb(l, this.lch[1], this.lch[2]);
 					pixels[i] = rgb[0];
 					pixels[i + 1] = rgb[1];
@@ -258,13 +344,13 @@ module picolor {
 			// draw tranparency slider
 			i = 0;
 			var rgb = chroma.lch2rgb(this.lch[0], this.lch[1], this.lch[2]);
-			for (var y = 0; y < height; y++) {
-				for (var x = 0; x < width; x++, i += 4) {
-					if (y < 30 || y > height - 30) continue;
-					if (x < width - 16 || x > width - 3) continue;
+			for (var y = 0; y < this.height; y++) {
+				for (var x = 0; x < this.width; x++, i += 4) {
+					if (y < 30 || y > this.height - 30) continue;
+					if (x < this.width - 16 || x > this.width - 3) continue;
 
 					// foreground alpha
-					var f_a = 255 - 255 * (y - 30) / (height - 60);
+					var f_a = 255 - 255 * (y - 30) / (this.height - 60);
 					var f_r = rgb[0];
 					var f_g = rgb[1];
 					var f_b = rgb[2];
@@ -278,7 +364,7 @@ module picolor {
 					var b_b = val;
 
 					// blend foreground and background
-					pixels[i] = (f_r * f_a/255) + (b_r * (1 - f_a/255));
+					pixels[i] = (f_r * f_a / 255) + (b_r * (1 - f_a / 255));
 					pixels[i + 1] = (f_g * f_a / 255) + (b_g * (1 - f_a / 255));
 					pixels[i + 2] = (f_b * f_a / 255) + (b_b * (1 - f_a / 255));
 					pixels[i + 3] = 255;
@@ -299,62 +385,36 @@ module picolor {
 
 			// draw rectangle around selected color in lightness slider
 			context.beginPath();
-			var lightnessY = Math.min(height - 35, 30 + (100 - this.lch[0]) / 100 * (height - 60));
+			var lightnessY = Math.min(this.height - 35, 30 + (100 - this.lch[0]) / 100 * (this.height - 60));
 			context.rect(1, lightnessY, 16, 5);
 			context.stroke();
 
 			// draw rectangle around selected tranparency
 			context.beginPath();
 			if (this.alpha < 128)
-				context.strokeStyle = '#0f0f0f'; 
-			var alphaY = Math.min(height - 35, 30 + (1 - this.alpha / 255) * (height - 60));
-			context.rect(width - 17, alphaY, 16, 5);
+				context.strokeStyle = '#0f0f0f';
+			var alphaY = Math.min(this.height - 35, 30 + (1 - this.alpha / 255) * (this.height - 60));
+			context.rect(this.width - 17, alphaY, 16, 5);
 			context.stroke();
 
 			if (this.showLabels) {
-				// TODO: make text font and text configurable
+				// TODO: make label font and text configurable
 
 				// light/dark labels
 				context.fillStyle = '#818181';
 				context.font = "10px sans-serif";
-				context.fillText("Dark", 20, height - 30);
+				context.fillText("Dark", 20, this.height - 30);
 				context.textBaseline = "top";
 				context.fillText("Light", 20, 30);
 
 				// opaque/transparent labels
 				context.textAlign = "end";
-				context.fillText("Opaque", width - 21, 30);
+				context.fillText("Opaque", this.width - 21, 30);
 				context.textBaseline = "bottom";
-				context.fillText("Transparent", width - 21, height - 30);
+				context.fillText("Transparent", this.width - 21, this.height - 30);
 			}
 
-			$('#' + this.containerDivID).on('click', '#' + this.colorWheelDivID, { ctx: context }, (ev) => {
-				var offset = $(ev.target).offset();
-				var x = ev.pageX - offset.left;
-				var y = ev.pageY - offset.top;
-
-				// check if click is inside wheel
-				var rx = x - cx;
-				var ry = y - cy;
-				var d = Math.sqrt(rx * rx + ry * ry);
-				if (d < radius) {
-					// keep l constant when we select another color on the wheel
-					var h = Math.atan2(ry, rx) * 180 / Math.PI;
-					var c = 100 * d / radius;
-					this.lch = [this.lch[0], c, h];
-				}
-
-				// inside lightness slider
-				if (y >= 30 && y <= height - 30 && x >= -2 && x <= 24) {
-					var l = 100 - (y - 30) / (height - 60) * 100;
-					this.lch = [l, this.lch[1], this.lch[2]];
-				}
-
-				// inside transparency slider
-				if (y >= 30 && y <= height - 30 && x >= width - 25 && x <= width + 1) {
-					this.alpha = 255 - 255 * (y - 30) / (height - 60);
-				}
-			});
+			
 		}
 	}
 

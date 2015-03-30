@@ -3,7 +3,7 @@
 /bin/
 /example/*.js
 /obj/
-/src/*.js
+/src/picolor.js
 app.js
 example.js.map
 picolor.csproj.user
