@@ -1,7 +1,6 @@
 *.js.map
 *.suo
 /bin/
-/example/*.js
 /obj/
 /src/picolor.js
 app.js
