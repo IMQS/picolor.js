@@ -49,11 +49,11 @@ module picolor {
 
 		constructor(containerDivID: string, options?: SingleColorOptions) {
 			// set defaults
-			this._lch = chroma.hex('#ffffff').lch();	// default = white
-			this._alpha = 255;							// default = opaque
-			this._showBasicSelector = true;				// default = show basic selector
-			this._showColorWheel = false;				// default = hide color wheel
-			this._showLabels = false;					// default = hide labels
+			this._lch = picolor.whiteToBlackInterpolator(0.4).lch();	// default = white
+			this._alpha = 255;											// default = opaque
+			this._showBasicSelector = true;								// default = show basic selector
+			this._showColorWheel = false;								// default = hide color wheel
+			this._showLabels = false;									// default = hide labels
 
 			// defaults
 			this.width = 298;
@@ -64,7 +64,7 @@ module picolor {
 
 			if (options)
 				this.setOptions(options);
-
+			
 			// set div IDs
 			this.containerDivID = containerDivID;
 			this.colorBandDivID = this.containerDivID + '-colorband';
