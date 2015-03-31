@@ -177,6 +177,7 @@ module picolor {
 			if (val[2] >= 360) val[2] -= 360;
 
 			this._lch = val;
+			// TODO: fire off colorchange event
 			this.draw(); // redraw control
 		}
 
@@ -449,8 +450,9 @@ module picolor {
 		private h: number = 33;
 		private w: number = 33;
 
-		private palMatrix: string[][] = [];
+		private palMatrix: Chroma.Color[][] = [];
 		private selectedPalIdx: number = 0;
+		private lighten: number = 0;
 
 		constructor(public containerDivID: string, options?: PaletteOptions) {
 			this.sequentialPalettes = [
@@ -497,7 +499,7 @@ module picolor {
 			var totWidth = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
 
 			this.selectedPalIdx = Math.floor(x / (totWidth / numPals));
-
+			// TODO: fire off palettechange event
 			this.draw();
 		}
 
@@ -507,8 +509,13 @@ module picolor {
 			}
 		}
 
-		get hexPalette(): string[] {
-			return this.palMatrix[this.selectedPalIdx];
+		get hexPalette(): string[]{
+			var result = [];
+			var pal = this.palMatrix[this.selectedPalIdx];
+			for (var i = 0; i < pal.length; i++) {
+				result.push(pal[i].hex());
+			}
+			return result;
 		}
 
 		get categoryCount(): number {
@@ -533,44 +540,44 @@ module picolor {
 
 			// sequential palettes
 			for (var i = 0; i < this.sequentialPalettes.length; i++) {
-				var palHex: string[] = [];
+				var palArr: Chroma.Color[] = [];
 				var pal = this.sequentialPalettes[i];
 				for (var j = 0; j < numCats; j++) {
 					var idx = j / (numCats - 1);
-					palHex.push(pal(idx).hex());
+					palArr.push(pal(idx).hex());
 				}
-				this.palMatrix.push(palHex);
+				this.palMatrix.push(palArr);
 			}
 
 			// divergent palettes
 			for (var i = 0; i < this.divergentPalettes.length; i++) {
-				var palHex: string[] = [];
+				var palArr: Chroma.Color[] = [];
 				var pal1 = this.divergentPalettes[i][0];
 				var pal2 = this.divergentPalettes[i][1];
 				for (var j = 0; j < numCats; j++) {
 					var idx = j / (numCats - 1);
-					var hex = (idx <= 0.5) ? pal1(idx * 2).hex() : pal2((idx - 0.5) * 2).hex();
-					palHex.push(hex);
+					var col = (idx <= 0.5) ? pal1(idx * 2) : pal2((idx - 0.5) * 2);
+					palArr.push(col);
 				}
-				this.palMatrix.push(palHex);
+				this.palMatrix.push(palArr);
 			}
 
 			// qualitative palettes
 			for (var i = 0; i < this.qualitativePalettes.length; i++) {
-				var palHex: string[] = [];
+				var palArr: Chroma.Color[] = [];
 				var palStr = this.qualitativePalettes[i];
 				// TODO: interpolate colors for numCats > palStr.length
 				for (var j = 0; j < palStr.length && j < numCats; j++) {
-					palHex.push(palStr[j]);
+					palArr.push(chroma.hex(palStr[j]));
 				}
-				this.palMatrix.push(palHex);
+				this.palMatrix.push(palArr);
 			}
 
 			// draw items from matrix
 			for (var i = 0; i < this.palMatrix.length; i++) {
-				var palHex = this.palMatrix[i];
-				for (var j = 0; j < palHex.length; j++) {
-					context.fillStyle = palHex[j];
+				var palArr = this.palMatrix[i];
+				for (var j = 0; j < palArr.length; j++) {
+					context.fillStyle = palArr[j];
 					context.fillRect(this.margin + i * (this.w + this.pad), this.margin + j * this.h, this.w, this.h);
 				}
 			}

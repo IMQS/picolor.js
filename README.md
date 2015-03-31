@@ -15,10 +15,15 @@ Picking suitable colors for maps are hard, especially when it comes to selecting
 2. `make`  
 
 # TODO  
-- Palette picker  
 - Remove JQuery dependency  
+- Add onchange events  
+- Get rid of css dependency  
 - Embed chroma.js inside picolor.js and picolor.min.js  
 - Extend example  
+- Make sizing configurable  
+- Single Picker: Use only canvas  
+- Palette Picker: Interpolate colors for qualitative palette where number of categories > 12  
+- Palette Picker: Lighten/darken palettes when user drags up/down  
 
 # Useful links  
 [Color Brewer](http://colorbrewer2.com/)  
