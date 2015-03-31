@@ -2,7 +2,7 @@ module picolor {
 
 	export interface SingleColorOptions {
 		color?: Chroma.Color;
-		showBasicSelctor?: boolean;
+		showBasicSelector?: boolean;
 		showColorWheel?: boolean;
 		showLabels?: boolean;
 	}
@@ -24,7 +24,7 @@ module picolor {
 		chroma.hex(chroma.brewer.Paired[5]),
 		chroma.hex(chroma.brewer.Paired[9])
 	];
-	export var whiteToBlackInterpolator = chroma.interpolate.bezier(['white', 'black']);
+	export var whiteToBlackInterpolator = chroma.scale(['white', 'black']).correctLightness(true);
 
 	export class SingleColor {
 		private _lch: number[];
@@ -64,7 +64,7 @@ module picolor {
 
 			if (options)
 				this.setOptions(options);
-			
+
 			// set div IDs
 			this.containerDivID = containerDivID;
 			this.colorBandDivID = this.containerDivID + '-colorband';
@@ -80,7 +80,7 @@ module picolor {
 				'		<div id="' + this.blackToWhiteBandDivID + '" style="margin-top: 6px"></div>' +
 				'	</div>' +
 				'	<div class="picolor-bottom-container">' +
-				'		<canvas id="' + this.colorWheelDivID + '" class="picolor-wheel"></canvas>' +
+				'		<canvas id="' + this.colorWheelDivID + '"></canvas>' +
 				'	</div>' +
 				'</div>';
 
@@ -93,7 +93,7 @@ module picolor {
 			$('#' + this.colorWheelDivID).mouseup(this.setWheelDragStateOff.bind(this));
 			$('#' + this.colorWheelDivID).mousedown((ev) => {
 				this.setWheelDragStateOn(ev);
-				this.setWheelColor(ev); 				
+				this.setWheelColor(ev);
 			});
 			$('#' + this.colorWheelDivID).mousemove(this.setWheelColor.bind(this));
 		}
@@ -134,7 +134,7 @@ module picolor {
 
 		private setWheelColor(ev) {
 			if (!this.isDraggingAlpha && !this.isDraggingColor && !this.isDraggingLightness) return;
-			
+
 			var x = ev.pageX - this.offset.left;
 			var y = ev.pageY - this.offset.top;
 
@@ -143,7 +143,7 @@ module picolor {
 				var rx = x - this.cx;
 				var ry = y - this.cy;
 				var d = Math.min(this.radius, Math.sqrt(rx * rx + ry * ry));
-				
+
 				// keep l constant when we select another color on the wheel
 				var h = Math.atan2(ry, rx) * 180 / Math.PI;
 				var c = 100 * d / this.radius;
@@ -411,15 +411,170 @@ module picolor {
 				context.fillText("Transparent", this.width - 21, this.height - 30);
 			}
 
-			
+
 		}
 	}
 
 	export interface PaletteOptions {
+		categoryCount?: number;
 	}
 
 	export class Palette {
-		constructor(public containerDivID: string) {
+		private _categoryCount: number;
+
+		// sequential palettes
+		private bluePalette: Chroma.Scale = chroma.scale(['#deebf7', '#08306b']).correctLightness(true);
+		private orangePalette: Chroma.Scale = chroma.scale(['#fee6ce', '#7f2704']).correctLightness(true);
+		private greenPalette: Chroma.Scale = chroma.scale(['#e5f5e0', '#00441b']).correctLightness(true);
+		private grayPalette: Chroma.Scale = chroma.scale(['#d9d9d9', 'black']).correctLightness(true);
+
+		// divergent palettes
+		private brownWhiteSeagreenPalette1: Chroma.Scale = chroma.scale(['#543005', '#f5f5f5']).correctLightness(true);
+		private brownWhiteSeagreenPalette2: Chroma.Scale = chroma.scale(['#f5f5f5', '#003c30']).correctLightness(true);
+		private redYellowPurplePalette1: Chroma.Scale = chroma.scale(['#a50026', '#ffffbf']).correctLightness(true);
+		private redYellowPurplePalette2: Chroma.Scale = chroma.scale(['#ffffbf', '#313695']).correctLightness(true);
+
+		private sequentialPalettes: Chroma.Scale[];
+		private divergentPalettes: Chroma.Scale[][];
+		private qualitativePalettes: string[][];
+
+		private paletteCanvasDivID;
+		private offset: JQueryCoordinates;
+		private margin: number = 10;
+		private pad: number = 10;
+		private h: number = 33;
+		private w: number = 33;
+
+		private palMatrix: string[][] = [];
+		private selectedPalIdx: number = 0;
+
+		constructor(public containerDivID: string, options?: PaletteOptions) {
+			this.sequentialPalettes = [
+				this.grayPalette,
+				this.bluePalette,
+				this.greenPalette,
+				this.orangePalette
+			];
+
+			this.divergentPalettes = [
+				[this.brownWhiteSeagreenPalette1, this.brownWhiteSeagreenPalette2],
+				[this.redYellowPurplePalette1, this.redYellowPurplePalette2]
+			];
+
+			this.qualitativePalettes = [
+				chroma.brewer.Paired
+			];
+
+			// set div IDs
+			this.containerDivID = containerDivID;
+			this.paletteCanvasDivID = this.containerDivID + '-canvas';
+
+			if (options)
+				this.setOptions(options)
+
+			// add DOM structure 
+			var content =
+				'<div class="picolor-container">' +
+				'	<canvas id="' + this.paletteCanvasDivID + '"></canvas>' +
+				'</div>';
+			var container = $('#' + this.containerDivID);
+			container.empty();
+			container.append(content);
+
+			// attach event handler
+			$('#' + this.paletteCanvasDivID).click(this.onClick.bind(this));
+		}
+
+		private onClick(ev) {
+			var x = ev.pageX - this.offset.left;
+			var y = ev.pageY - this.offset.top;
+
+			var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePalettes.length;
+			var totWidth = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
+
+			this.selectedPalIdx = Math.floor(x / (totWidth / numPals));
+
+			this.draw();
+		}
+
+		private setOptions(options: PaletteOptions) {
+			if (options.categoryCount && options.categoryCount > 1) {
+				this._categoryCount = options.categoryCount;
+			}
+		}
+
+		get hexPalette(): string[] {
+			return this.palMatrix[this.selectedPalIdx];
+		}
+
+		get categoryCount(): number {
+			return this._categoryCount;
+		}	
+		set categoryCount(val: number) {
+			this._categoryCount = val;
+			this.draw();
+		}
+
+		draw() {
+			this.offset = $('#' + this.paletteCanvasDivID).offset();
+
+			var el: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById(this.paletteCanvasDivID);
+			var context = el.getContext('2d');
+
+			var numCats = this.categoryCount;
+			var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePalettes.length;
+
+			el.width = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
+			el.height = this.margin * 2 + this.h * numCats;
+
+			// sequential palettes
+			for (var i = 0; i < this.sequentialPalettes.length; i++) {
+				var palHex: string[] = [];
+				var pal = this.sequentialPalettes[i];
+				for (var j = 0; j < numCats; j++) {
+					var idx = j / (numCats - 1);
+					palHex.push(pal(idx).hex());
+				}
+				this.palMatrix.push(palHex);
+			}
+
+			// divergent palettes
+			for (var i = 0; i < this.divergentPalettes.length; i++) {
+				var palHex: string[] = [];
+				var pal1 = this.divergentPalettes[i][0];
+				var pal2 = this.divergentPalettes[i][1];
+				for (var j = 0; j < numCats; j++) {
+					var idx = j / (numCats - 1);
+					var hex = (idx <= 0.5) ? pal1(idx * 2).hex() : pal2((idx - 0.5) * 2).hex();
+					palHex.push(hex);
+				}
+				this.palMatrix.push(palHex);
+			}
+
+			// qualitative palettes
+			for (var i = 0; i < this.qualitativePalettes.length; i++) {
+				var palHex: string[] = [];
+				var palStr = this.qualitativePalettes[i];
+				// TODO: interpolate colors for numCats > palStr.length
+				for (var j = 0; j < palStr.length, j < numCats; j++) {
+					palHex.push(palStr[j]);
+				}
+				this.palMatrix.push(palHex);
+			}
+
+			// draw items from matrix
+			for (var i = 0; i < this.palMatrix.length; i++) {
+				var palHex = this.palMatrix[i];
+				for (var j = 0; j < palHex.length; j++) {
+					context.fillStyle = palHex[j];
+					context.fillRect(this.margin + i * (this.w + this.pad), this.margin + j * this.h, this.w, this.h);
+				}
+			}
+
+			// draw selected border
+			context.strokeStyle = 'black';
+			context.lineWidth = 2;
+			context.strokeRect(this.margin - 2 + this.selectedPalIdx * (this.w + this.pad), this.margin - 2, this.w + 4, this.h * numCats + 4);
 		}
 	}
 }
