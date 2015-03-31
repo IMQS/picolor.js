@@ -556,7 +556,7 @@ module picolor {
 				var palHex: string[] = [];
 				var palStr = this.qualitativePalettes[i];
 				// TODO: interpolate colors for numCats > palStr.length
-				for (var j = 0; j < palStr.length, j < numCats; j++) {
+				for (var j = 0; j < palStr.length && j < numCats; j++) {
 					palHex.push(palStr[j]);
 				}
 				this.palMatrix.push(palHex);
