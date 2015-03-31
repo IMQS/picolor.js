@@ -145,7 +145,9 @@ var picolor;
 
                 this._lch = val;
 
-                // TODO: fire off colorchange event
+                // trigger event
+                $('#' + this.containerDivID).trigger('oncolorchange', [this.hex]);
+
                 this.draw(); // redraw control
             },
             enumerable: true,
@@ -476,8 +478,7 @@ var picolor;
             var totWidth = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
 
             this.selectedPalIdx = Math.floor(x / (totWidth / numPals));
-
-            // TODO: fire off palettechange event
+            $('#' + this.containerDivID).trigger('oncolorchange', [this.hexPalette]);
             this.draw();
         };
 
@@ -529,7 +530,7 @@ var picolor;
                 var pal = this.sequentialPalettes[i];
                 for (var j = 0; j < numCats; j++) {
                     var idx = j / (numCats - 1);
-                    palArr.push(pal(idx).hex());
+                    palArr.push(pal(idx));
                 }
                 this.palMatrix.push(palArr);
             }
