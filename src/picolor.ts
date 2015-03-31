@@ -180,6 +180,10 @@ module picolor {
 			this.draw(); // redraw control
 		}
 
+		get hex(): string {
+			return chroma.lch(this.lch[0], this.lch[1], this.lch[2]).hex();
+		}
+
 		get alpha(): number {
 			return this._alpha;
 		}
