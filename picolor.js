@@ -374,28 +374,30 @@ var picolor;
 
             context.putImageData(imageData, 0, 0);
 
-            // draw circle around selected color in wheel
+            // draw rectangle around selected color in lightness slider
             context.beginPath();
             context.lineWidth = 2;
             if (this.lch[0] > 50)
-                context.strokeStyle = '#0f0f0f'; // for light wheel
+                context.strokeStyle = '#2f2f2f'; // for dark selector on light background
             else
-                context.strokeStyle = '#efefef'; // for dark wheel
-            context.arc(picked_x, picked_y, 3, 0, 2 * Math.PI, false);
+                context.strokeStyle = '#dfdfdf'; // for light selector on dark background
+            var lightnessY = 30 + (100 - this.lch[0]) / 100 * (this.height - 60);
+            lightnessY = Math.max(35 + 2, Math.min(this.height - 30 - 6, lightnessY)); // limit position
+            context.arc(9, lightnessY, 5, 0, 2 * Math.PI, false);
             context.stroke();
 
-            // draw rectangle around selected color in lightness slider
+            // draw circle around selected color in wheel
             context.beginPath();
-            var lightnessY = Math.min(this.height - 35, 30 + (100 - this.lch[0]) / 100 * (this.height - 60));
-            context.rect(1, lightnessY, 16, 5);
+            if (this.alpha < 128)
+                context.strokeStyle = '#2f2f2f';
+            context.arc(picked_x, picked_y, 6, 0, 2 * Math.PI, false);
             context.stroke();
 
             // draw rectangle around selected tranparency
             context.beginPath();
-            if (this.alpha < 128)
-                context.strokeStyle = '#0f0f0f';
             var alphaY = Math.min(this.height - 35, 30 + (1 - this.alpha / 255) * (this.height - 60));
-            context.rect(this.width - 17, alphaY, 16, 5);
+            alphaY = Math.max(35 + 2, Math.min(this.height - 30 - 6, alphaY)); // limit position
+            context.arc(this.width - 9, alphaY, 5, 0, 2 * Math.PI, false);
             context.stroke();
 
             if (this.showLabels) {
