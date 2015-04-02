@@ -71,7 +71,7 @@ span {
 	margin: 0px;
 	padding: 0px;
 	background-color: #E0E0E0;
-	padding: 5px 0px;
+	padding: 5px;
 
 	-webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -79,12 +79,6 @@ span {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
-}
-
-.picolor-bottom-container {
-	margin: 7px;
-	width: 298px;
-	height: 298px;
 }
 
 .picolor-box-container {

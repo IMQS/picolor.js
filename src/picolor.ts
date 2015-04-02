@@ -1,10 +1,11 @@
 module picolor {
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// BASIC PICKER
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	export interface SingleColorOptions {
+	export interface BasicPickerOptions {
 		color?: Chroma.Color;
-		showBasicSelector?: boolean;
-		showColorWheel?: boolean;
-		showLabels?: boolean;
 	}
 
 	// 6 colors of with light and dark variations of each
@@ -26,15 +27,122 @@ module picolor {
 	];
 	export var whiteToBlackInterpolator = chroma.scale(['white', 'black']).correctLightness(true);
 
-	export class SingleColor {
+	export class BasicPicker {
 		private _lch: number[];
 		private _alpha: number;
-		private _showBasicSelector: boolean;
-		private _showColorWheel: boolean;
-		private _showLabels: boolean;
 		private containerDivID: string;
 		private colorBandDivID: string;
 		private blackToWhiteBandDivID: string;
+
+		constructor(containerDivID: string, options?: BasicPickerOptions) {
+			// set defaults
+			this._lch = picolor.whiteToBlackInterpolator(0.4).lch();	// default = white
+			this._alpha = 1;											// default = opaque
+
+			if (options)
+				this.setOptions(options);
+
+			// set div IDs
+			this.containerDivID = containerDivID;
+			this.colorBandDivID = this.containerDivID + '-colorband';
+			this.blackToWhiteBandDivID = this.containerDivID + '-blacktowhiteband';
+
+			// add DOM structure 
+			var content =
+				'<div class="picolor-container">' +
+				'	<div id="' + this.colorBandDivID + '-0' + '"></div>' +
+				'	<div id="' + this.colorBandDivID + '-1' + '"></div>' +
+				'	<div id="' + this.blackToWhiteBandDivID + '" style="margin-top: 6px"></div>' +
+				'</div>';
+
+			var container = $('#' + this.containerDivID);
+			container.empty();
+			container.append(content);
+		}
+
+		private setOptions(options: BasicPickerOptions) {
+			// change private members, editing public members causes premature redraw
+			if (options.color) {
+				this._lch = options.color.lch();
+				this._alpha = options.color.alpha();
+			}
+		}
+
+		get lch(): number[] {
+			return this._lch;
+		}
+		set lch(val: number[]) {
+			// Constrain chroma : 0 <= c < 360
+			if (val[2] < 0) val[2] += 360;
+			if (val[2] >= 360) val[2] -= 360;
+			this._lch = val;
+
+			this.draw(); // redraw control
+		}
+
+		get hex(): string {
+			return chroma.lch(this.lch[0], this.lch[1], this.lch[2]).hex();
+		}
+
+		get color(): Chroma.Color {
+			return chroma.lch(this.lch[0], this.lch[1], this.lch[2], this._alpha);
+		}
+		set color(val: Chroma.Color) {
+			this._lch = val.lch();
+			this._alpha = val.alpha();
+			this.draw();
+		}
+
+		draw() {
+			// TODO: rather use canvas to draw blocks and add checkerbox to indicate transparency
+			// TODO: add scaling based on container size rather than harcoded size
+
+			// Remove all old click handlers - if you don't do this it destroys performance
+			$('#' + this.containerDivID).off('click');
+
+			var genSpectrumContent = (spectrum: Chroma.Color[], containerID: string) => {
+				var content = '';
+				for (var i = 0; i < spectrum.length; i++) {
+					var divID = containerID + '-' + i;
+					content += '<div id="' + divID + '" class="picolor-box-container';
+					if (this.color.css() === spectrum[i].css())
+						content += ' picolor-box-container-selected';
+					content += '">';
+					content += '	<div class="picolor-box" style="background-color:' + spectrum[i].css() + '"></div>';
+					content += '</div>';
+
+					$('#' + this.containerDivID).on('click', '#' + divID, spectrum[i], (ev) => {
+						this.color = ev.data;
+						$('#' + this.containerDivID).trigger('oncolorchange', [this.color]);
+					});
+				}
+				$('#' + containerID).empty();
+				$('#' + containerID).append(content);
+			}
+
+			var blackWhiteSpectrum = [];
+			var step = 0.2
+			for (var i = 0; i < 6; i++)
+				blackWhiteSpectrum.push(picolor.whiteToBlackInterpolator(i * step));
+
+			genSpectrumContent(picolor.lightSpectrum, this.colorBandDivID + '-0');
+			genSpectrumContent(picolor.darkSpectrum, this.colorBandDivID + '-1');
+			genSpectrumContent(blackWhiteSpectrum, this.blackToWhiteBandDivID);
+		}
+	}
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// COLOR WHEEL
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	export interface ColorWheelOptions {
+		color?: Chroma.Color;
+	}
+
+	export class ColorWheel {
+		private _lch: number[];
+		private _alpha: number;
+		private containerDivID: string;
 		private colorWheelDivID: string;
 		private isDraggingLightness: boolean;
 		private isDraggingColor: boolean;
@@ -47,13 +155,10 @@ module picolor {
 		private radius: number;
 		private offset: JQueryCoordinates;
 
-		constructor(containerDivID: string, options?: SingleColorOptions) {
+		constructor(containerDivID: string, options?: ColorWheelOptions) {
 			// set defaults
 			this._lch = picolor.whiteToBlackInterpolator(0.4).lch();	// default = white
-			this._alpha = 255;											// default = opaque
-			this._showBasicSelector = true;								// default = show basic selector
-			this._showColorWheel = false;								// default = hide color wheel
-			this._showLabels = false;									// default = hide labels
+			this._alpha = 1;											// default = opaque
 
 			// defaults
 			this.width = 298;
@@ -67,21 +172,12 @@ module picolor {
 
 			// set div IDs
 			this.containerDivID = containerDivID;
-			this.colorBandDivID = this.containerDivID + '-colorband';
-			this.blackToWhiteBandDivID = this.containerDivID + '-blacktowhiteband';
 			this.colorWheelDivID = this.containerDivID + '-colorwheel';
 
 			// add DOM structure 
 			var content =
 				'<div class="picolor-container">' +
-				'	<div class="picolor-top-container">' +
-				'		<div id="' + this.colorBandDivID + '-0' + '"></div>' +
-				'		<div id="' + this.colorBandDivID + '-1' + '"></div>' +
-				'		<div id="' + this.blackToWhiteBandDivID + '" style="margin-top: 6px"></div>' +
-				'	</div>' +
-				'	<div class="picolor-bottom-container">' +
-				'		<canvas id="' + this.colorWheelDivID + '"></canvas>' +
-				'	</div>' +
+				'	<canvas id="' + this.colorWheelDivID + '"></canvas>' +
 				'</div>';
 
 			var container = $('#' + this.containerDivID);
@@ -98,15 +194,12 @@ module picolor {
 			$('#' + this.colorWheelDivID).mousemove(this.setWheelColor.bind(this));
 		}
 
-		private setOptions(options: SingleColorOptions) {
+		private setOptions(options: ColorWheelOptions) {
 			// change private members, editing public members causes premature redraw
 			if (options.color) {
 				this._lch = options.color.lch();
 				this._alpha = options.color.alpha();
 			}
-			this._showColorWheel = !!options.showColorWheel;
-			this._showLabels = !!options.showLabels;
-			this._showBasicSelector = !!options.showColorWheel;
 		}
 
 		private setWheelDragStateOn(ev) {
@@ -158,7 +251,7 @@ module picolor {
 
 			// inside transparency slider
 			if (this.isDraggingAlpha) {
-				this.alpha = Math.max(0, Math.min(255, 255 - 255 * (y - 30) / (this.height - 60)));
+				this.alpha = Math.max(0, Math.min(1, 1 - 1 * (y - 30) / (this.height - 60)));
 			}
 		}
 
@@ -179,7 +272,7 @@ module picolor {
 			this._lch = val;
 
 			// trigger event
-			$('#' + this.containerDivID).trigger('oncolorchange', [this.hex]);
+			$('#' + this.containerDivID).trigger('oncolorchange', [this.color]);
 
 			this.draw(); // redraw control
 		}
@@ -196,77 +289,17 @@ module picolor {
 			this.draw(); // redraw control
 		}
 
-		getColor(): Chroma.Color {
-			return chroma.lch(this.lch[0], this.lch[1], this.lch[2]);
+		get color(): Chroma.Color {
+			return chroma.lch(this.lch[0], this.lch[1], this.lch[2], this._alpha);
 		}
-
-		get showColorWheel(): boolean {
-			return this._showColorWheel;
-		}
-		set showColorWheel(val: boolean) {
-			this._showColorWheel = val;
-			this.draw();
-		}
-
-		get showLabels(): boolean {
-			return this._showLabels;
-		}
-		set showLabels(val: boolean) {
-			this._showLabels = val;
-			this.draw();
-		}
-
-		get showBasicSelector(): boolean {
-			return this._showBasicSelector;
-		}
-		set showBasicSelector(val: boolean) {
-			this._showBasicSelector = val;
+		set color(val: Chroma.Color) {
+			this._lch = val.lch();
+			this._alpha = val.alpha();
 			this.draw();
 		}
 
 		draw() {
-			// Remove all old click handlers - if you don't do this it destroys performance
-			$('#' + this.containerDivID).off('click');
-
-			if (this.showBasicSelector)
-				this.drawBasicSelector();
-			if (this.showColorWheel)
-				this.drawColorWheel();
-		}
-
-		private drawBasicSelector() {
-			// TODO: rather use canvas to draw blocks and add checkerbox to indicate transparency
 			// TODO: add scaling based on container size rather than harcoded size
-
-			var genSpectrumContent = (spectrum: Chroma.Color[], containerID: string) => {
-				var content = '';
-				for (var i = 0; i < spectrum.length; i++) {
-					var divID = containerID + '-' + i;
-					content += '<div id="' + divID + '" class="picolor-box-container';
-					if (this.getColor().css() === spectrum[i].css())
-						content += ' picolor-box-container-selected';
-					content += '">';
-					content += '	<div class="picolor-box" style="background-color:' + spectrum[i].css() + '"></div>';
-					content += '</div>';
-
-					$('#' + this.containerDivID).on('click', '#' + divID, spectrum[i].lch(), (ev) => { this.lch = ev.data });
-				}
-				$('#' + containerID).empty();
-				$('#' + containerID).append(content);
-			}
-
-			var blackWhiteSpectrum = [];
-			var step = 0.2
-			for (var i = 0; i < 6; i++)
-				blackWhiteSpectrum.push(picolor.whiteToBlackInterpolator(i * step));
-
-			genSpectrumContent(picolor.lightSpectrum, this.colorBandDivID + '-0');
-			genSpectrumContent(picolor.darkSpectrum, this.colorBandDivID + '-1');
-			genSpectrumContent(blackWhiteSpectrum, this.blackToWhiteBandDivID);
-		}
-
-		private drawColorWheel() {
-			// TODO: add scaling based on container size rather than hardcoded size
 
 			this.offset = $('#' + this.colorWheelDivID).offset();
 
@@ -306,7 +339,7 @@ module picolor {
 							picked_y = y;
 						}
 
-						var f_a = this.alpha;
+						var f_a = this.alpha * 255;
 						var f_r = rgb[0];
 						var f_g = rgb[1];
 						var f_b = rgb[2];
@@ -380,7 +413,7 @@ module picolor {
 
 			// draw rectangle around selected color in lightness slider
 			context.beginPath();
-			context.lineWidth = 2;
+			context.lineWidth = 1.5;
 			if (this.lch[0] > 50)
 				context.strokeStyle = '#2f2f2f'; // for dark selector on light background
 			else
@@ -392,38 +425,23 @@ module picolor {
 
 			// draw circle around selected color in wheel
 			context.beginPath();
-			if (this.alpha < 128)
+			if (this.alpha < 0.5)
 				context.strokeStyle = '#2f2f2f';
 			context.arc(picked_x, picked_y, 6, 0, 2 * Math.PI, false);
 			context.stroke();
 
 			// draw rectangle around selected tranparency
 			context.beginPath();
-			var alphaY = Math.min(this.height - 35, 30 + (1 - this.alpha / 255) * (this.height - 60));
+			var alphaY = Math.min(this.height - 35, 30 + (1 - this.alpha) * (this.height - 60));
 			alphaY = Math.max(35 + 2, Math.min(this.height - 30 - 6, alphaY)); // limit position
 			context.arc(this.width - 9, alphaY, 5, 0, 2 * Math.PI, false);
 			context.stroke();
-
-			if (this.showLabels) {
-				// TODO: make label font and text configurable
-
-				// light/dark labels
-				context.fillStyle = '#818181';
-				context.font = "10px sans-serif";
-				context.fillText("Dark", 20, this.height - 30);
-				context.textBaseline = "top";
-				context.fillText("Light", 20, 30);
-
-				// opaque/transparent labels
-				context.textAlign = "end";
-				context.fillText("Opaque", this.width - 21, 30);
-				context.textBaseline = "bottom";
-				context.fillText("Transparent", this.width - 21, this.height - 30);
-			}
-
-
 		}
 	}
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// PALETTE PICKER
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	export interface PaletteOptions {
 		categoryCount?: number;

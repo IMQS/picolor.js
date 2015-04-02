@@ -6,18 +6,25 @@ Picking suitable colors for maps are hard, especially when it comes to selecting
 
 ## Usage  
 
-### Single Picker  
-	var singlePicker = new picolor.SingleColor('singleDivID');  
-	singlePicker.draw();  
-	$('#singleDivID').on('oncolorchange', function(ev) {  
-			// Do something with ev.data.color  
+### Basic Picker  
+	var basicPicker = new picolor.BasicPicker("basic-picker");  
+	basicPicker.draw();  
+	$("#basic-picker").on("oncolorchange", function(ev, color) {   
+			// Do something with color (Chroma.Color instance)  
+		});  
+
+### Color Wheel  
+	var colorWheel = new picolor.ColorWheel("color-wheel");  
+	colorWheel.draw();  
+	$("#color-wheel").on("oncolorchange", function(ev, color) {  
+			// Do something with color (Chroma.Color instance)  
 		});  
 
 ### Palette Picker  
-	var palettePicker = new picolor.Palette('paletteDivID');  
+	var palettePicker = new picolor.Palette("palette-picker", { categoryCount: 7 });  
 	palettePicker.draw();  
-	$('#paletteDivID').on('oncolorchange', function(ev) {  
-			// Do something with ev.data.palette  
+	$("#palette-picker").on("oncolorchange", (ev, palette) => {   
+			// Do something with palette (array of hex strings)  
 		});  
 
 ## Build from source  
