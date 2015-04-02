@@ -72,7 +72,7 @@ module picolor {
 			return this._lch;
 		}
 		set lch(val: number[]) {
-			// Constrain chroma : 0 <= c < 360
+			// Constrain hue : 0 <= h < 360
 			if (val[2] < 0) val[2] += 360;
 			if (val[2] >= 360) val[2] -= 360;
 			this._lch = val;
@@ -85,7 +85,9 @@ module picolor {
 		}
 
 		get color(): Chroma.Color {
-			return chroma.lch(this.lch[0], this.lch[1], this.lch[2], this._alpha);
+			var color = chroma.lch(this.lch[0], this.lch[1], this.lch[2]);
+			color.alpha(this._alpha)
+			return color;
 		}
 		set color(val: Chroma.Color) {
 			this._lch = val.lch();
@@ -112,7 +114,7 @@ module picolor {
 					content += '</div>';
 
 					$('#' + this.containerDivID).on('click', '#' + divID, spectrum[i], (ev) => {
-						this.color = ev.data;
+						this.lch = ev.data.lch();
 						$('#' + this.containerDivID).trigger('oncolorchange', [this.color]);
 					});
 				}
@@ -251,8 +253,11 @@ module picolor {
 
 			// inside transparency slider
 			if (this.isDraggingAlpha) {
-				this.alpha = Math.max(0, Math.min(1, 1 - 1 * (y - 30) / (this.height - 60)));
+				this.alpha = Math.max(0, Math.min(1, 1 - (y - 30) / (this.height - 60)));
 			}
+
+			// trigger event
+			$('#' + this.containerDivID).trigger('oncolorchange', [this.color]);
 		}
 
 		private setWheelDragStateOff(ev) {
@@ -271,9 +276,6 @@ module picolor {
 
 			this._lch = val;
 
-			// trigger event
-			$('#' + this.containerDivID).trigger('oncolorchange', [this.color]);
-
 			this.draw(); // redraw control
 		}
 
@@ -290,7 +292,9 @@ module picolor {
 		}
 
 		get color(): Chroma.Color {
-			return chroma.lch(this.lch[0], this.lch[1], this.lch[2], this._alpha);
+			var color = chroma.lch(this.lch[0], this.lch[1], this.lch[2]);
+			color.alpha(this._alpha);
+			return color;
 		}
 		set color(val: Chroma.Color) {
 			this._lch = val.lch();
@@ -339,7 +343,7 @@ module picolor {
 							picked_y = y;
 						}
 
-						var f_a = this.alpha * 255;
+						var f_a = this.alpha;
 						var f_r = rgb[0];
 						var f_g = rgb[1];
 						var f_b = rgb[2];
@@ -353,9 +357,9 @@ module picolor {
 						var b_b = val;
 
 						// blend foreground and background
-						pixels[i] = (f_r * f_a / 255) + (b_r * (1 - f_a / 255));
-						pixels[i + 1] = (f_g * f_a / 255) + (b_g * (1 - f_a / 255));
-						pixels[i + 2] = (f_b * f_a / 255) + (b_b * (1 - f_a / 255));
+						pixels[i] = (f_r * f_a) + (b_r * (1 - f_a));
+						pixels[i + 1] = (f_g * f_a) + (b_g * (1 - f_a));
+						pixels[i + 2] = (f_b * f_a) + (b_b * (1 - f_a));
 
 						// anti-alias
 						pixels[i + 3] = 255 * Math.max(0, this.radius - d);
@@ -379,7 +383,7 @@ module picolor {
 				}
 			}
 
-			// draw tranparency slider
+			// draw transparency slider
 			i = 0;
 			var rgb = chroma.lch2rgb(this.lch[0], this.lch[1], this.lch[2]);
 			for (var y = 0; y < this.height; y++) {
@@ -388,7 +392,7 @@ module picolor {
 					if (x < this.width - 16 || x > this.width - 3) continue;
 
 					// foreground alpha
-					var f_a = 255 - 255 * (y - 30) / (this.height - 60);
+					var f_a = 1 - (y - 30) / (this.height - 60);
 					var f_r = rgb[0];
 					var f_g = rgb[1];
 					var f_b = rgb[2];
@@ -402,9 +406,9 @@ module picolor {
 					var b_b = val;
 
 					// blend foreground and background
-					pixels[i] = (f_r * f_a / 255) + (b_r * (1 - f_a / 255));
-					pixels[i + 1] = (f_g * f_a / 255) + (b_g * (1 - f_a / 255));
-					pixels[i + 2] = (f_b * f_a / 255) + (b_b * (1 - f_a / 255));
+					pixels[i] = (f_r * f_a) + (b_r * (1 - f_a));
+					pixels[i + 1] = (f_g * f_a) + (b_g * (1 - f_a));
+					pixels[i + 2] = (f_b * f_a) + (b_b * (1 - f_a));
 					pixels[i + 3] = 255;
 				}
 			}
