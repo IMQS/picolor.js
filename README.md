@@ -40,7 +40,6 @@ Picking suitable colors for maps are hard, especially when it comes to selecting
 2. `make`  
 
 ## TODO  
-- Get rid of css dependency  
 - Embed chroma.js inside picolor.js and picolor.min.js  
 - Extend example  
 - Make sizing configurable  

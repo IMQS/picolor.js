@@ -1,5 +1,5 @@
 module picolor {
-	
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// BASIC PICKER
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -106,11 +106,18 @@ module picolor {
 				var content = '';
 				for (var i = 0; i < spectrum.length; i++) {
 					var divID = containerID + '-' + i;
-					content += '<div id="' + divID + '" class="picolor-box-container';
+					content += '<div id="' + divID + '" style="width: 38px;' +
+					'height: 24px;' +
+					'display: inline-block;' +
+					'padding: 1px;' +
+					'background-color: #E0E0E0;' +
+					'margin: 0px 4px 0px 4px;';
 					if (this.color.css() === spectrum[i].css())
-						content += ' picolor-box-container-selected';
+						content += ' border: 2px solid black;';
+					else
+						content += ' border: 2px solid #E0E0E0;';
 					content += '">';
-					content += '	<div class="picolor-box" style="background-color:' + spectrum[i].css() + '"></div>';
+					content += '	<div style="height: 24px; background-color:' + spectrum[i].css() + '"></div>';
 					content += '</div>';
 
 					$('#' + this.containerDivID).on('click', '#' + divID, spectrum[i], (ev) => {
@@ -178,7 +185,7 @@ module picolor {
 
 			// add DOM structure 
 			var content =
-				'<div class="picolor-container">' +
+				'<div style="background-color: #E0E0E0; padding 5px">' +
 				'	<canvas id="' + this.colorWheelDivID + '"></canvas>' +
 				'</div>';
 
@@ -507,7 +514,7 @@ module picolor {
 
 			// add DOM structure 
 			var content =
-				'<div class="picolor-container">' +
+				'<div style="background-color: #E0E0E0; padding 5px">' +
 				'	<canvas id="' + this.paletteCanvasDivID + '"></canvas>' +
 				'</div>';
 			var container = $('#' + this.containerDivID);
@@ -536,7 +543,7 @@ module picolor {
 			}
 		}
 
-		get hexPalette(): string[]{
+		get hexPalette(): string[] {
 			var result = [];
 			var pal = this.palMatrix[this.selectedPalIdx];
 			for (var i = 0; i < pal.length; i++) {
@@ -547,7 +554,7 @@ module picolor {
 
 		get categoryCount(): number {
 			return this._categoryCount;
-		}	
+		}
 		set categoryCount(val: number) {
 			this._categoryCount = val;
 			this.draw();

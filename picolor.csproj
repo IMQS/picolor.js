@@ -18,7 +18,6 @@
     <IISExpressUseClassicPipelineMode />
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="example\example.css" />
     <Content Include="index.html" />
     <Content Include="src\third-party\chroma.js" />
     <Content Include="src\third-party\chroma.min.js" />
