@@ -36,7 +36,7 @@ var picolor;
             this.blackToWhiteBandDivID = this.containerDivID + '-blacktowhiteband';
 
             // add DOM structure
-            var content = '<div class="picolor-container">' + '	<div id="' + this.colorBandDivID + '-0' + '"></div>' + '	<div id="' + this.colorBandDivID + '-1' + '"></div>' + '	<div id="' + this.blackToWhiteBandDivID + '" style="margin-top: 6px"></div>' + '</div>';
+            var content = '<div>' + '	<div id="' + this.colorBandDivID + '-0' + '"></div>' + '	<div id="' + this.colorBandDivID + '-1' + '"></div>' + '	<div id="' + this.blackToWhiteBandDivID + '" style="margin-top: 6px"></div>' + '</div>';
 
             var container = $('#' + this.containerDivID);
             container.empty();
@@ -102,7 +102,7 @@ var picolor;
                 var content = '';
                 for (var i = 0; i < spectrum.length; i++) {
                     var divID = containerID + '-' + i;
-                    content += '<div id="' + divID + '" style="width: 38px;' + 'height: 24px;' + 'display: inline-block;' + 'padding: 1px;' + 'background-color: #E0E0E0;' + 'margin: 0px 4px 0px 4px;';
+                    content += '<div id="' + divID + '" style="width: 38px;' + 'height: 24px;' + 'cursor: pointer;' + 'display: inline-block;' + 'padding: 1px;' + 'background-color: #E0E0E0;' + 'margin: 0px 4px 0px 4px;';
                     if (_this.color.css() === spectrum[i].css())
                         content += ' border: 2px solid black;';
                     else
@@ -170,7 +170,10 @@ var picolor;
                 _this.setWheelDragStateOn(ev);
                 _this.setWheelColor(ev);
             });
-            $('#' + this.colorWheelDivID).mousemove(this.setWheelColor.bind(this));
+            $('#' + this.colorWheelDivID).mousemove(function (ev) {
+                _this.setCursor(ev);
+                _this.setWheelColor(ev);
+            });
         }
         ColorWheel.prototype.setOptions = function (options) {
             // change private members, editing public members causes premature redraw
@@ -201,6 +204,38 @@ var picolor;
             if (y >= 30 && y <= this.height - 30 && x >= this.width - 25 && x <= this.width + 1) {
                 this.isDraggingAlpha = true;
             }
+        };
+
+        ColorWheel.prototype.setCursor = function (ev) {
+            // don't change cursor while dragging
+            if (this.isDraggingAlpha || this.isDraggingColor || this.isDraggingLightness)
+                return;
+
+            var x = ev.pageX - this.offset.left;
+            var y = ev.pageY - this.offset.top;
+
+            // inside color wheel
+            var rx = x - this.cx;
+            var ry = y - this.cy;
+            var d = Math.sqrt(rx * rx + ry * ry);
+            if (d < this.radius) {
+                $('#' + this.colorWheelDivID).css('cursor', 'crosshair');
+                return;
+            }
+
+            // inside lightness slider
+            if (y >= 30 && y <= this.height - 30 && x >= -2 && x <= 18) {
+                $('#' + this.colorWheelDivID).css('cursor', 's-resize');
+                return;
+            }
+
+            // inside transparency slider
+            if (y >= 30 && y <= this.height - 30 && x >= this.width - 19 && x <= this.width + 1) {
+                $('#' + this.colorWheelDivID).css('cursor', 's-resize');
+                return;
+            }
+
+            $('#' + this.colorWheelDivID).css('cursor', 'default');
         };
 
         ColorWheel.prototype.setWheelColor = function (ev) {
@@ -490,7 +525,7 @@ var picolor;
                 this.setOptions(options);
 
             // add DOM structure
-            var content = '<div style="background-color: #E0E0E0; padding 5px">' + '	<canvas id="' + this.paletteCanvasDivID + '"></canvas>' + '</div>';
+            var content = '<div style="background-color: #E0E0E0; padding 5px; cursor: pointer;">' + '	<canvas id="' + this.paletteCanvasDivID + '"></canvas>' + '</div>';
             var container = $('#' + this.containerDivID);
             container.empty();
             container.append(content);

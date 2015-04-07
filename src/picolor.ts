@@ -49,7 +49,7 @@ module picolor {
 
 			// add DOM structure 
 			var content =
-				'<div class="picolor-container">' +
+				'<div>' +
 				'	<div id="' + this.colorBandDivID + '-0' + '"></div>' +
 				'	<div id="' + this.colorBandDivID + '-1' + '"></div>' +
 				'	<div id="' + this.blackToWhiteBandDivID + '" style="margin-top: 6px"></div>' +
@@ -108,6 +108,7 @@ module picolor {
 					var divID = containerID + '-' + i;
 					content += '<div id="' + divID + '" style="width: 38px;' +
 					'height: 24px;' +
+					'cursor: pointer;' +
 					'display: inline-block;' +
 					'padding: 1px;' +
 					'background-color: #E0E0E0;' +
@@ -200,7 +201,10 @@ module picolor {
 				this.setWheelDragStateOn(ev);
 				this.setWheelColor(ev);
 			});
-			$('#' + this.colorWheelDivID).mousemove(this.setWheelColor.bind(this));
+			$('#' + this.colorWheelDivID).mousemove((ev) => {
+				this.setCursor(ev);
+				this.setWheelColor(ev);
+			});
 		}
 
 		private setOptions(options: ColorWheelOptions) {
@@ -232,6 +236,37 @@ module picolor {
 			if (y >= 30 && y <= this.height - 30 && x >= this.width - 25 && x <= this.width + 1) {
 				this.isDraggingAlpha = true;
 			}
+		}
+
+		private setCursor(ev) {
+			// don't change cursor while dragging
+			if (this.isDraggingAlpha || this.isDraggingColor || this.isDraggingLightness) return;
+
+			var x = ev.pageX - this.offset.left;
+			var y = ev.pageY - this.offset.top;
+
+			// inside color wheel
+			var rx = x - this.cx;
+			var ry = y - this.cy;
+			var d = Math.sqrt(rx * rx + ry * ry);
+			if (d < this.radius) {
+				$('#' + this.colorWheelDivID).css('cursor', 'crosshair');
+				return;
+			}
+
+			// inside lightness slider
+			if (y >= 30 && y <= this.height - 30 && x >= -2 && x <= 18) {
+				$('#' + this.colorWheelDivID).css('cursor', 's-resize');
+				return;
+			}
+
+			// inside transparency slider
+			if (y >= 30 && y <= this.height - 30 && x >= this.width - 19 && x <= this.width + 1) {
+				$('#' + this.colorWheelDivID).css('cursor', 's-resize');
+				return;
+			}
+
+			$('#' + this.colorWheelDivID).css('cursor', 'default');
 		}
 
 		private setWheelColor(ev) {
@@ -514,7 +549,7 @@ module picolor {
 
 			// add DOM structure 
 			var content =
-				'<div style="background-color: #E0E0E0; padding 5px">' +
+				'<div style="background-color: #E0E0E0; padding 5px; cursor: pointer;">' +
 				'	<canvas id="' + this.paletteCanvasDivID + '"></canvas>' +
 				'</div>';
 			var container = $('#' + this.containerDivID);
