@@ -28,7 +28,9 @@
   <ItemGroup>
     <TypeScriptCompile Include="src\defs\chroma-js.d.ts" />
     <TypeScriptCompile Include="src\defs\jquery.d.ts" />
-    <TypeScriptCompile Include="src\picolor.ts" />
+    <TypeScriptCompile Include="src\basic.ts" />
+    <TypeScriptCompile Include="src\palette.ts" />
+    <TypeScriptCompile Include="src\wheel.ts" />
   </ItemGroup>
   <ItemGroup>
     <None Include="web.Debug.config">
@@ -57,8 +59,9 @@
     </VisualStudio>
   </ProjectExtensions>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-    <TypeScriptRemoveComments>false</TypeScriptRemoveComments>
+    <TypeScriptRemoveComments>True</TypeScriptRemoveComments>
     <TypeScriptSourceMap>true</TypeScriptSourceMap>
+    <TypeScriptOutFile>picolor.js</TypeScriptOutFile>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <TypeScriptRemoveComments>true</TypeScriptRemoveComments>

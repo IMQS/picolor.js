@@ -1,7 +1,5 @@
 var picolor;
 (function (picolor) {
-    
-
     // 6 colors of with light and dark variations of each
     picolor.lightSpectrum = [
         chroma.hex(chroma.brewer.Paired[0]),
@@ -132,9 +130,9 @@ var picolor;
         return BasicPicker;
     })();
     picolor.BasicPicker = BasicPicker;
-
-    
-
+})(picolor || (picolor = {}));
+var picolor;
+(function (picolor) {
     var ColorWheel = (function () {
         function ColorWheel(containerDivID, options) {
             var _this = this;
@@ -478,9 +476,9 @@ var picolor;
         return ColorWheel;
     })();
     picolor.ColorWheel = ColorWheel;
-
-    
-
+})(picolor || (picolor = {}));
+var picolor;
+(function (picolor) {
     var Palette = (function () {
         function Palette(containerDivID, options) {
             this.containerDivID = containerDivID;
