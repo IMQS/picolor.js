@@ -4,28 +4,12 @@ JavaScript color picker controls optimized for picking map colors
 ## Why not use a stock color picker?  
 Picking suitable colors for maps are hard, especially when it comes to selecting visually distinct colors for a range of values. picolor.js aims to ease that process by providing smart pre-set visually distinct colors and palettes.  
 
-## Usage  
+## Demos  
 
-### Basic Picker  
-	var basicPicker = new picolor.BasicPicker("basic-picker");  
-	basicPicker.draw();  
-	$("#basic-picker").on("oncolorchange", function(ev, color) {   
-			// Do something with color (Chroma.Color instance)  
-		});  
-
-### Color Wheel  
-	var colorWheel = new picolor.ColorWheel("color-wheel");  
-	colorWheel.draw();  
-	$("#color-wheel").on("oncolorchange", function(ev, color) {  
-			// Do something with color (Chroma.Color instance)  
-		});  
-
-### Palette Picker  
-	var palettePicker = new picolor.Palette("palette-picker", { categoryCount: 7 });  
-	palettePicker.draw();  
-	$("#palette-picker").on("oncolorchange", (ev, palette) => {   
-			// Do something with palette (array of hex strings)  
-		});  
+[Basic Picker](http://jsfiddle.net/jacobriers/r4vzm2ha/2/)  
+[Color Wheel](http://jsfiddle.net/jacobriers/qew2htaa/)  
+[Basic Picker - Color Wheel Interaction](http://jsfiddle.net/jacobriers/hhsfj4tf/)  
+[Palette Picker](http://jsfiddle.net/jacobriers/xod1bvav/)  
 
 ## Build from source  
 
@@ -41,7 +25,6 @@ Picking suitable colors for maps are hard, especially when it comes to selecting
 
 ## TODO  
 - Embed chroma.js inside picolor.js and picolor.min.js  
-- Extend example  
 - Make sizing configurable  
 - Single Picker: Use only canvas  
 - Palette Picker: Interpolate colors for qualitative palette where number of categories > 12  
