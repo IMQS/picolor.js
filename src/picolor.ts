@@ -113,7 +113,7 @@ module picolor {
 					'padding: 1px;' +
 					'background-color: #E0E0E0;' +
 					'margin: 0px 4px 0px 4px;';
-					if (this.color.css() === spectrum[i].css())
+					if (this.color.hex() === spectrum[i].hex()) // ignore alpha matching
 						content += ' border: 2px solid black;';
 					else
 						content += ' border: 2px solid #E0E0E0;';
@@ -228,12 +228,12 @@ module picolor {
 			}
 
 			// inside lightness slider
-			if (y >= 30 && y <= this.height - 30 && x >= -2 && x <= 24) {
+			if (y >= 30 && y <= this.height - 30 && x >= 0 && x <= 18) {
 				this.isDraggingLightness = true;
 			}
 
 			// inside transparency slider
-			if (y >= 30 && y <= this.height - 30 && x >= this.width - 25 && x <= this.width + 1) {
+			if (y >= 30 && y <= this.height - 30 && x >= this.width - 19 && x <= this.width) {
 				this.isDraggingAlpha = true;
 			}
 		}
@@ -255,13 +255,13 @@ module picolor {
 			}
 
 			// inside lightness slider
-			if (y >= 30 && y <= this.height - 30 && x >= -2 && x <= 18) {
+			if (y >= 30 && y <= this.height - 30 && x >= 0 && x <= 18) {
 				$('#' + this.colorWheelDivID).css('cursor', 's-resize');
 				return;
 			}
 
 			// inside transparency slider
-			if (y >= 30 && y <= this.height - 30 && x >= this.width - 19 && x <= this.width + 1) {
+			if (y >= 30 && y <= this.height - 30 && x >= this.width - 19 && x <= this.width) {
 				$('#' + this.colorWheelDivID).css('cursor', 's-resize');
 				return;
 			}

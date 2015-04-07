@@ -103,7 +103,7 @@ var picolor;
                 for (var i = 0; i < spectrum.length; i++) {
                     var divID = containerID + '-' + i;
                     content += '<div id="' + divID + '" style="width: 38px;' + 'height: 24px;' + 'cursor: pointer;' + 'display: inline-block;' + 'padding: 1px;' + 'background-color: #E0E0E0;' + 'margin: 0px 4px 0px 4px;';
-                    if (_this.color.css() === spectrum[i].css())
+                    if (_this.color.hex() === spectrum[i].hex())
                         content += ' border: 2px solid black;';
                     else
                         content += ' border: 2px solid #E0E0E0;';
@@ -196,12 +196,12 @@ var picolor;
             }
 
             // inside lightness slider
-            if (y >= 30 && y <= this.height - 30 && x >= -2 && x <= 24) {
+            if (y >= 30 && y <= this.height - 30 && x >= 0 && x <= 18) {
                 this.isDraggingLightness = true;
             }
 
             // inside transparency slider
-            if (y >= 30 && y <= this.height - 30 && x >= this.width - 25 && x <= this.width + 1) {
+            if (y >= 30 && y <= this.height - 30 && x >= this.width - 19 && x <= this.width) {
                 this.isDraggingAlpha = true;
             }
         };
@@ -224,13 +224,13 @@ var picolor;
             }
 
             // inside lightness slider
-            if (y >= 30 && y <= this.height - 30 && x >= -2 && x <= 18) {
+            if (y >= 30 && y <= this.height - 30 && x >= 0 && x <= 18) {
                 $('#' + this.colorWheelDivID).css('cursor', 's-resize');
                 return;
             }
 
             // inside transparency slider
-            if (y >= 30 && y <= this.height - 30 && x >= this.width - 19 && x <= this.width + 1) {
+            if (y >= 30 && y <= this.height - 30 && x >= this.width - 19 && x <= this.width) {
                 $('#' + this.colorWheelDivID).css('cursor', 's-resize');
                 return;
             }
