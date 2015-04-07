@@ -26,7 +26,6 @@
     <Content Include="web.config" />
   </ItemGroup>
   <ItemGroup>
-    <TypeScriptCompile Include="example\example.ts" />
     <TypeScriptCompile Include="src\defs\chroma-js.d.ts" />
     <TypeScriptCompile Include="src\defs\jquery.d.ts" />
     <TypeScriptCompile Include="src\picolor.ts" />
