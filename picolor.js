@@ -55,7 +55,7 @@ var picolor;
                 return this._lch;
             },
             set: function (val) {
-                // Constrain chroma : 0 <= c < 360
+                // Constrain hue : 0 <= h < 360
                 if (val[2] < 0)
                     val[2] += 360;
                 if (val[2] >= 360)
@@ -78,7 +78,9 @@ var picolor;
 
         Object.defineProperty(BasicPicker.prototype, "color", {
             get: function () {
-                return chroma.lch(this.lch[0], this.lch[1], this.lch[2], this._alpha);
+                var color = chroma.lch(this.lch[0], this.lch[1], this.lch[2]);
+                color.alpha(this._alpha);
+                return color;
             },
             set: function (val) {
                 this._lch = val.lch();
@@ -100,15 +102,17 @@ var picolor;
                 var content = '';
                 for (var i = 0; i < spectrum.length; i++) {
                     var divID = containerID + '-' + i;
-                    content += '<div id="' + divID + '" class="picolor-box-container';
+                    content += '<div id="' + divID + '" style="width: 38px;' + 'height: 24px;' + 'display: inline-block;' + 'padding: 1px;' + 'background-color: #E0E0E0;' + 'margin: 0px 4px 0px 4px;';
                     if (_this.color.css() === spectrum[i].css())
-                        content += ' picolor-box-container-selected';
+                        content += ' border: 2px solid black;';
+                    else
+                        content += ' border: 2px solid #E0E0E0;';
                     content += '">';
-                    content += '	<div class="picolor-box" style="background-color:' + spectrum[i].css() + '"></div>';
+                    content += '	<div style="height: 24px; background-color:' + spectrum[i].css() + '"></div>';
                     content += '</div>';
 
                     $('#' + _this.containerDivID).on('click', '#' + divID, spectrum[i], function (ev) {
-                        _this.color = ev.data;
+                        _this.lch = ev.data.lch();
                         $('#' + _this.containerDivID).trigger('oncolorchange', [_this.color]);
                     });
                 }
@@ -153,7 +157,7 @@ var picolor;
             this.colorWheelDivID = this.containerDivID + '-colorwheel';
 
             // add DOM structure
-            var content = '<div class="picolor-container">' + '	<canvas id="' + this.colorWheelDivID + '"></canvas>' + '</div>';
+            var content = '<div style="background-color: #E0E0E0; padding 5px">' + '	<canvas id="' + this.colorWheelDivID + '"></canvas>' + '</div>';
 
             var container = $('#' + this.containerDivID);
             container.empty();
@@ -226,8 +230,11 @@ var picolor;
 
             // inside transparency slider
             if (this.isDraggingAlpha) {
-                this.alpha = Math.max(0, Math.min(1, 1 - 1 * (y - 30) / (this.height - 60)));
+                this.alpha = Math.max(0, Math.min(1, 1 - (y - 30) / (this.height - 60)));
             }
+
+            // trigger event
+            $('#' + this.containerDivID).trigger('oncolorchange', [this.color]);
         };
 
         ColorWheel.prototype.setWheelDragStateOff = function (ev) {
@@ -248,9 +255,6 @@ var picolor;
                     val[2] -= 360;
 
                 this._lch = val;
-
-                // trigger event
-                $('#' + this.containerDivID).trigger('oncolorchange', [this.color]);
 
                 this.draw(); // redraw control
             },
@@ -280,7 +284,9 @@ var picolor;
 
         Object.defineProperty(ColorWheel.prototype, "color", {
             get: function () {
-                return chroma.lch(this.lch[0], this.lch[1], this.lch[2], this._alpha);
+                var color = chroma.lch(this.lch[0], this.lch[1], this.lch[2]);
+                color.alpha(this._alpha);
+                return color;
             },
             set: function (val) {
                 this._lch = val.lch();
@@ -332,7 +338,7 @@ var picolor;
                             picked_y = y;
                         }
 
-                        var f_a = this.alpha * 255;
+                        var f_a = this.alpha;
                         var f_r = rgb[0];
                         var f_g = rgb[1];
                         var f_b = rgb[2];
@@ -346,9 +352,9 @@ var picolor;
                         var b_b = val;
 
                         // blend foreground and background
-                        pixels[i] = (f_r * f_a / 255) + (b_r * (1 - f_a / 255));
-                        pixels[i + 1] = (f_g * f_a / 255) + (b_g * (1 - f_a / 255));
-                        pixels[i + 2] = (f_b * f_a / 255) + (b_b * (1 - f_a / 255));
+                        pixels[i] = (f_r * f_a) + (b_r * (1 - f_a));
+                        pixels[i + 1] = (f_g * f_a) + (b_g * (1 - f_a));
+                        pixels[i + 2] = (f_b * f_a) + (b_b * (1 - f_a));
 
                         // anti-alias
                         pixels[i + 3] = 255 * Math.max(0, this.radius - d);
@@ -374,7 +380,7 @@ var picolor;
                 }
             }
 
-            // draw tranparency slider
+            // draw transparency slider
             i = 0;
             var rgb = chroma.lch2rgb(this.lch[0], this.lch[1], this.lch[2]);
             for (var y = 0; y < this.height; y++) {
@@ -385,7 +391,7 @@ var picolor;
                         continue;
 
                     // foreground alpha
-                    var f_a = 255 - 255 * (y - 30) / (this.height - 60);
+                    var f_a = 1 - (y - 30) / (this.height - 60);
                     var f_r = rgb[0];
                     var f_g = rgb[1];
                     var f_b = rgb[2];
@@ -399,9 +405,9 @@ var picolor;
                     var b_b = val;
 
                     // blend foreground and background
-                    pixels[i] = (f_r * f_a / 255) + (b_r * (1 - f_a / 255));
-                    pixels[i + 1] = (f_g * f_a / 255) + (b_g * (1 - f_a / 255));
-                    pixels[i + 2] = (f_b * f_a / 255) + (b_b * (1 - f_a / 255));
+                    pixels[i] = (f_r * f_a) + (b_r * (1 - f_a));
+                    pixels[i + 1] = (f_g * f_a) + (b_g * (1 - f_a));
+                    pixels[i + 2] = (f_b * f_a) + (b_b * (1 - f_a));
                     pixels[i + 3] = 255;
                 }
             }
@@ -484,7 +490,7 @@ var picolor;
                 this.setOptions(options);
 
             // add DOM structure
-            var content = '<div class="picolor-container">' + '	<canvas id="' + this.paletteCanvasDivID + '"></canvas>' + '</div>';
+            var content = '<div style="background-color: #E0E0E0; padding 5px">' + '	<canvas id="' + this.paletteCanvasDivID + '"></canvas>' + '</div>';
             var container = $('#' + this.containerDivID);
             container.empty();
             container.append(content);
