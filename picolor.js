@@ -157,7 +157,6 @@ var picolor;
             this.pad = 10;
             this.h = 33;
             this.w = 33;
-            this.palMatrix = [];
             this.selectedPalIdx = 0;
             this.isDraggingLightness = false;
             this.containerDivID = containerDivID;
@@ -238,7 +237,7 @@ var picolor;
             var totWidth = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
 
             this.selectedPalIdx = Math.floor(x / (totWidth / numPals));
-            $('#' + this.containerDivID).trigger('oncolorchange', [this.hexPalette]);
+            $('#' + this.containerDivID).trigger('oncolorchange', [this.palette]);
             this.draw();
         };
 
@@ -248,10 +247,10 @@ var picolor;
             }
         };
 
-        Object.defineProperty(Palette.prototype, "hexPalette", {
+        Object.defineProperty(Palette.prototype, "palette", {
             get: function () {
                 var result = [];
-                var pal = this.palMatrix[this.selectedPalIdx];
+                var pal = this.paletteMatrix()[this.selectedPalIdx];
                 for (var i = 0; i < pal.length; i++) {
                     result.push(pal[i].hex());
                 }
@@ -273,17 +272,9 @@ var picolor;
             configurable: true
         });
 
-        Palette.prototype.draw = function () {
-            this.offset = $('#' + this.paletteCanvasDivID).offset();
-
-            var el = document.getElementById(this.paletteCanvasDivID);
-            var context = el.getContext('2d');
-
+        Palette.prototype.paletteMatrix = function () {
+            var m = [];
             var numCats = this.categoryCount;
-            var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePaletteCount;
-
-            el.width = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
-            el.height = this.margin * 2 + this.h * numCats;
 
             for (var i = 0; i < this.sequentialPalettes.length; i++) {
                 var palArr = [];
@@ -292,7 +283,7 @@ var picolor;
                     var idx = j / (numCats - 1);
                     palArr.push(pal(idx));
                 }
-                this.palMatrix.push(palArr);
+                m.push(palArr);
             }
 
             for (var i = 0; i < this.divergentPalettes.length; i++) {
@@ -304,7 +295,7 @@ var picolor;
                     var col = (idx <= 0.5) ? pal1(idx * 2) : pal2((idx - 0.5) * 2);
                     palArr.push(col);
                 }
-                this.palMatrix.push(palArr);
+                m.push(palArr);
             }
 
             var palArr = [];
@@ -319,10 +310,27 @@ var picolor;
                     palArr.push(pair(j / (interpolationsPerScale - 1)));
                 }
             }
-            this.palMatrix.push(palArr);
+            m.push(palArr);
 
-            for (var i = 0; i < this.palMatrix.length; i++) {
-                var palArr = this.palMatrix[i];
+            return m;
+        };
+
+        Palette.prototype.draw = function () {
+            this.offset = $('#' + this.paletteCanvasDivID).offset();
+
+            var el = document.getElementById(this.paletteCanvasDivID);
+            var context = el.getContext('2d');
+
+            var numCats = this.categoryCount;
+            var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePaletteCount;
+
+            el.width = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
+            el.height = this.margin * 2 + this.h * numCats;
+
+            var palMatrix = this.paletteMatrix();
+
+            for (var i = 0; i < palMatrix.length; i++) {
+                var palArr = palMatrix[i];
                 for (var j = 0; j < palArr.length; j++) {
                     context.fillStyle = palArr[j].hex();
                     context.fillRect(this.margin + i * (this.w + this.pad), this.margin + j * this.h, this.w, this.h);

@@ -39,7 +39,6 @@ module picolor {
 		private h: number = 33;
 		private w: number = 33;
 
-		private palMatrix: Chroma.Color[][] = [];
 		private selectedPalIdx: number = 0;
 
 		private isDraggingLightness: boolean = false;
@@ -120,7 +119,7 @@ module picolor {
 			var totWidth = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
 
 			this.selectedPalIdx = Math.floor(x / (totWidth / numPals));
-			$('#' + this.containerDivID).trigger('oncolorchange', [this.hexPalette]);
+			$('#' + this.containerDivID).trigger('oncolorchange', [this.palette]);
 			this.draw();
 		}
 
@@ -130,9 +129,9 @@ module picolor {
 			}
 		}
 
-		get hexPalette(): string[] {
+		get palette(): Chroma.Color[] {
 			var result = [];
-			var pal = this.palMatrix[this.selectedPalIdx];
+			var pal = this.paletteMatrix()[this.selectedPalIdx];
 			for (var i = 0; i < pal.length; i++) {
 				result.push(pal[i].hex());
 			}
@@ -147,17 +146,9 @@ module picolor {
 			this.draw();
 		}
 
-		draw() {
-			this.offset = $('#' + this.paletteCanvasDivID).offset();
-
-			var el: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById(this.paletteCanvasDivID);
-			var context = el.getContext('2d');
-
+		private paletteMatrix(): Chroma.Color[][]{
+			var m = [];
 			var numCats = this.categoryCount;
-			var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePaletteCount;
-
-			el.width = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
-			el.height = this.margin * 2 + this.h * numCats;
 
 			// sequential palettes
 			for (var i = 0; i < this.sequentialPalettes.length; i++) {
@@ -167,7 +158,7 @@ module picolor {
 					var idx = j / (numCats - 1);
 					palArr.push(pal(idx));
 				}
-				this.palMatrix.push(palArr);
+				m.push(palArr);
 			}
 
 			// divergent palettes
@@ -180,7 +171,7 @@ module picolor {
 					var col = (idx <= 0.5) ? pal1(idx * 2) : pal2((idx - 0.5) * 2);
 					palArr.push(col);
 				}
-				this.palMatrix.push(palArr);
+				m.push(palArr);
 			}
 
 			// qualitative palettes (only paired brewer at the moment)
@@ -193,14 +184,31 @@ module picolor {
 			for (var i = 0; i < this.brewerPairedScales.length && palArr.length < numCats; i++) {
 				var pair = this.brewerPairedScales[i];
 				for (var j = 0; j < interpolationsPerScale && palArr.length < numCats; j++) {
-					palArr.push(pair(j / (interpolationsPerScale-1)));
+					palArr.push(pair(j / (interpolationsPerScale - 1)));
 				}
 			}
-			this.palMatrix.push(palArr);
+			m.push(palArr);
+
+			return m;
+		}
+
+		draw() {
+			this.offset = $('#' + this.paletteCanvasDivID).offset();
+
+			var el: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById(this.paletteCanvasDivID);
+			var context = el.getContext('2d');
+
+			var numCats = this.categoryCount;
+			var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePaletteCount;
+
+			el.width = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
+			el.height = this.margin * 2 + this.h * numCats;
+
+			var palMatrix = this.paletteMatrix();
 
 			// draw items from matrix
-			for (var i = 0; i < this.palMatrix.length; i++) {
-				var palArr = this.palMatrix[i];
+			for (var i = 0; i < palMatrix.length; i++) {
+				var palArr = palMatrix[i];
 				for (var j = 0; j < palArr.length; j++) {
 					context.fillStyle = palArr[j].hex();
 					context.fillRect(this.margin + i * (this.w + this.pad), this.margin + j * this.h, this.w, this.h);

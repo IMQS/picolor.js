@@ -8,8 +8,8 @@ Picking suitable colors for maps are hard, especially when it comes to selecting
 
 [Basic Picker](http://jsfiddle.net/jacobriers/r4vzm2ha/2/)  
 [Color Wheel](http://jsfiddle.net/jacobriers/qew2htaa/)  
-[Basic Picker - Color Wheel Interaction](http://jsfiddle.net/jacobriers/hhsfj4tf/)  
-[Palette Picker](http://jsfiddle.net/jacobriers/xod1bvav/)  
+[Basic Picker - Color Wheel Interaction](http://jsfiddle.net/jacobriers/hhsfj4tf/1/)  
+[Palette Picker](http://jsfiddle.net/jacobriers/xod1bvav/1/)  
 
 ## Build from source  
 
