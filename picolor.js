@@ -1,6 +1,5 @@
 var picolor;
 (function (picolor) {
-    // 6 colors of with light and dark variations of each
     picolor.lightSpectrum = [
         chroma.hex(chroma.brewer.Paired[0]),
         chroma.hex(chroma.brewer.Paired[2]),
@@ -21,19 +20,16 @@ var picolor;
 
     var BasicPicker = (function () {
         function BasicPicker(containerDivID, options) {
-            // set defaults
-            this._lch = picolor.whiteToBlackInterpolator(0.4).lch(); // default = white
-            this._alpha = 1; // default = opaque
+            this._lch = picolor.whiteToBlackInterpolator(0.4).lch();
+            this._alpha = 1;
 
             if (options)
                 this.setOptions(options);
 
-            // set div IDs
             this.containerDivID = containerDivID;
             this.colorBandDivID = this.containerDivID + '-colorband';
             this.blackToWhiteBandDivID = this.containerDivID + '-blacktowhiteband';
 
-            // add DOM structure
             var content = '<div>' + '	<div id="' + this.colorBandDivID + '-0' + '"></div>' + '	<div id="' + this.colorBandDivID + '-1' + '"></div>' + '	<div id="' + this.blackToWhiteBandDivID + '" style="margin-top: 6px"></div>' + '</div>';
 
             var container = $('#' + this.containerDivID);
@@ -41,7 +37,6 @@ var picolor;
             container.append(content);
         }
         BasicPicker.prototype.setOptions = function (options) {
-            // change private members, editing public members causes premature redraw
             if (options.color) {
                 this._lch = options.color.lch();
                 this._alpha = options.color.alpha();
@@ -53,14 +48,13 @@ var picolor;
                 return this._lch;
             },
             set: function (val) {
-                // Constrain hue : 0 <= h < 360
                 if (val[2] < 0)
                     val[2] += 360;
                 if (val[2] >= 360)
                     val[2] -= 360;
                 this._lch = val;
 
-                this.draw(); // redraw control
+                this.draw();
             },
             enumerable: true,
             configurable: true
@@ -90,18 +84,24 @@ var picolor;
         });
 
         BasicPicker.prototype.draw = function () {
-            // TODO: rather use canvas to draw blocks and add checkerbox to indicate transparency
-            // TODO: add scaling based on container size rather than harcoded size
             var _this = this;
-            // Remove all old click handlers - if you don't do this it destroys performance
             $('#' + this.containerDivID).off('click');
+
+            var colorDiff = function (col1, col2) {
+                var rgb1 = col1.rgb();
+                var rgb2 = col2.rgb();
+                var rDiff = rgb1[0] - rgb2[0];
+                var gDiff = rgb1[1] - rgb2[1];
+                var bDiff = rgb1[2] - rgb2[2];
+                return Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff);
+            };
 
             var genSpectrumContent = function (spectrum, containerID) {
                 var content = '';
                 for (var i = 0; i < spectrum.length; i++) {
                     var divID = containerID + '-' + i;
                     content += '<div id="' + divID + '" style="width: 38px;' + 'height: 24px;' + 'cursor: pointer;' + 'display: inline-block;' + 'padding: 1px;' + 'background-color: #E0E0E0;' + 'margin: 0px 4px 0px 4px;';
-                    if (_this.color.hex() === spectrum[i].hex())
+                    if (colorDiff(_this.color, spectrum[i]) < 1)
                         content += ' border: 2px solid black;';
                     else
                         content += ' border: 2px solid #E0E0E0;';
@@ -133,409 +133,108 @@ var picolor;
 })(picolor || (picolor = {}));
 var picolor;
 (function (picolor) {
-    var ColorWheel = (function () {
-        function ColorWheel(containerDivID, options) {
-            var _this = this;
-            // set defaults
-            this._lch = picolor.whiteToBlackInterpolator(0.4).lch(); // default = white
-            this._alpha = 1; // default = opaque
-
-            // defaults
-            this.width = 298;
-            this.height = 298;
-            this.cx = this.width / 2;
-            this.cy = this.height / 2;
-            this.radius = 119;
-
-            if (options)
-                this.setOptions(options);
-
-            // set div IDs
-            this.containerDivID = containerDivID;
-            this.colorWheelDivID = this.containerDivID + '-colorwheel';
-
-            // add DOM structure
-            var content = '<div style="background-color: #E0E0E0; padding 5px">' + '	<canvas id="' + this.colorWheelDivID + '"></canvas>' + '</div>';
-
-            var container = $('#' + this.containerDivID);
-            container.empty();
-            container.append(content);
-
-            // hook up event handlers
-            $('#' + this.colorWheelDivID).mouseleave(this.setWheelDragStateOff.bind(this));
-            $('#' + this.colorWheelDivID).mouseup(this.setWheelDragStateOff.bind(this));
-            $('#' + this.colorWheelDivID).mousedown(function (ev) {
-                _this.setWheelDragStateOn(ev);
-                _this.setWheelColor(ev);
-            });
-            $('#' + this.colorWheelDivID).mousemove(function (ev) {
-                _this.setCursor(ev);
-                _this.setWheelColor(ev);
-            });
-        }
-        ColorWheel.prototype.setOptions = function (options) {
-            // change private members, editing public members causes premature redraw
-            if (options.color) {
-                this._lch = options.color.lch();
-                this._alpha = options.color.alpha();
-            }
-        };
-
-        ColorWheel.prototype.setWheelDragStateOn = function (ev) {
-            var x = ev.pageX - this.offset.left;
-            var y = ev.pageY - this.offset.top;
-
-            // check if click is inside wheel
-            var rx = x - this.cx;
-            var ry = y - this.cy;
-            var d = Math.sqrt(rx * rx + ry * ry);
-            if (d < this.radius) {
-                this.isDraggingColor = true;
-            }
-
-            // inside lightness slider
-            if (y >= 30 && y <= this.height - 30 && x >= 0 && x <= 18) {
-                this.isDraggingLightness = true;
-            }
-
-            // inside transparency slider
-            if (y >= 30 && y <= this.height - 30 && x >= this.width - 19 && x <= this.width) {
-                this.isDraggingAlpha = true;
-            }
-        };
-
-        ColorWheel.prototype.setCursor = function (ev) {
-            // don't change cursor while dragging
-            if (this.isDraggingAlpha || this.isDraggingColor || this.isDraggingLightness)
-                return;
-
-            var x = ev.pageX - this.offset.left;
-            var y = ev.pageY - this.offset.top;
-
-            // inside color wheel
-            var rx = x - this.cx;
-            var ry = y - this.cy;
-            var d = Math.sqrt(rx * rx + ry * ry);
-            if (d < this.radius) {
-                $('#' + this.colorWheelDivID).css('cursor', 'crosshair');
-                return;
-            }
-
-            // inside lightness slider
-            if (y >= 30 && y <= this.height - 30 && x >= 0 && x <= 18) {
-                $('#' + this.colorWheelDivID).css('cursor', 's-resize');
-                return;
-            }
-
-            // inside transparency slider
-            if (y >= 30 && y <= this.height - 30 && x >= this.width - 19 && x <= this.width) {
-                $('#' + this.colorWheelDivID).css('cursor', 's-resize');
-                return;
-            }
-
-            $('#' + this.colorWheelDivID).css('cursor', 'default');
-        };
-
-        ColorWheel.prototype.setWheelColor = function (ev) {
-            if (!this.isDraggingAlpha && !this.isDraggingColor && !this.isDraggingLightness)
-                return;
-
-            var x = ev.pageX - this.offset.left;
-            var y = ev.pageY - this.offset.top;
-
-            // check if click is inside wheel
-            if (this.isDraggingColor) {
-                var rx = x - this.cx;
-                var ry = y - this.cy;
-                var d = Math.min(this.radius, Math.sqrt(rx * rx + ry * ry));
-
-                // keep l constant when we select another color on the wheel
-                var h = Math.atan2(ry, rx) * 180 / Math.PI;
-                var c = 100 * d / this.radius;
-                this.lch = [this.lch[0], c, h];
-            }
-
-            // inside lightness slider
-            if (this.isDraggingLightness) {
-                var l = Math.max(0, Math.min(100, 100 - (y - 30) / (this.height - 60) * 100));
-                this.lch = [l, this.lch[1], this.lch[2]];
-            }
-
-            // inside transparency slider
-            if (this.isDraggingAlpha) {
-                this.alpha = Math.max(0, Math.min(1, 1 - (y - 30) / (this.height - 60)));
-            }
-
-            // trigger event
-            $('#' + this.containerDivID).trigger('oncolorchange', [this.color]);
-        };
-
-        ColorWheel.prototype.setWheelDragStateOff = function (ev) {
-            this.isDraggingAlpha = false;
-            this.isDraggingColor = false;
-            this.isDraggingLightness = false;
-        };
-
-        Object.defineProperty(ColorWheel.prototype, "lch", {
-            get: function () {
-                return this._lch;
-            },
-            set: function (val) {
-                // Constrain chroma : 0 <= c < 360
-                if (val[2] < 0)
-                    val[2] += 360;
-                if (val[2] >= 360)
-                    val[2] -= 360;
-
-                this._lch = val;
-
-                this.draw(); // redraw control
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        Object.defineProperty(ColorWheel.prototype, "hex", {
-            get: function () {
-                return chroma.lch(this.lch[0], this.lch[1], this.lch[2]).hex();
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        Object.defineProperty(ColorWheel.prototype, "alpha", {
-            get: function () {
-                return this._alpha;
-            },
-            set: function (val) {
-                this._alpha = val;
-                this.draw(); // redraw control
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        Object.defineProperty(ColorWheel.prototype, "color", {
-            get: function () {
-                var color = chroma.lch(this.lch[0], this.lch[1], this.lch[2]);
-                color.alpha(this._alpha);
-                return color;
-            },
-            set: function (val) {
-                this._lch = val.lch();
-                this._alpha = val.alpha();
-                this.draw();
-            },
-            enumerable: true,
-            configurable: true
-        });
-
-        ColorWheel.prototype.draw = function () {
-            // TODO: add scaling based on container size rather than harcoded size
-            this.offset = $('#' + this.colorWheelDivID).offset();
-
-            var el = document.getElementById(this.colorWheelDivID);
-            var context = el.getContext('2d');
-
-            var picked_x, picked_y;
-            var picked_dist = Number.MAX_VALUE;
-
-            el.width = this.width;
-            el.height = this.height;
-
-            var imageData = context.createImageData(this.width, this.height);
-            var pixels = imageData.data;
-
-            // draw wheel
-            var i = 0;
-            for (var y = 0; y < this.height; y++) {
-                for (var x = 0; x < this.width; x++, i += 4) {
-                    var rx = x - this.cx;
-                    var ry = y - this.cy;
-                    var d = Math.sqrt(rx * rx + ry * ry);
-                    if (d < this.radius + 0.5) {
-                        // get foreground color
-                        var h = Math.atan2(ry, rx) * 180 / Math.PI;
-                        if (h < 0)
-                            h += 360;
-                        if (h > 360)
-                            h -= 360;
-                        var c = 100 * d / this.radius;
-
-                        var rgb = chroma.lch2rgb(this.lch[0], c, h);
-
-                        var dist = Math.sqrt(Math.pow(c - this.lch[1], 2) + Math.pow(h - this.lch[2], 2));
-                        if (dist < picked_dist) {
-                            picked_dist = dist;
-                            picked_x = x;
-                            picked_y = y;
-                        }
-
-                        var f_a = this.alpha;
-                        var f_r = rgb[0];
-                        var f_g = rgb[1];
-                        var f_b = rgb[2];
-
-                        // get background checkerbox to display alpha
-                        var horz = (Math.floor(x / 5) % 2 == 0);
-                        var vert = (Math.floor(y / 5) % 2 == 0);
-                        var val = (horz && !vert) || (!horz && vert) ? 250 : 200;
-                        var b_r = val;
-                        var b_g = val;
-                        var b_b = val;
-
-                        // blend foreground and background
-                        pixels[i] = (f_r * f_a) + (b_r * (1 - f_a));
-                        pixels[i + 1] = (f_g * f_a) + (b_g * (1 - f_a));
-                        pixels[i + 2] = (f_b * f_a) + (b_b * (1 - f_a));
-
-                        // anti-alias
-                        pixels[i + 3] = 255 * Math.max(0, this.radius - d);
-                    }
-                }
-            }
-
-            // draw lightness slider
-            i = 0;
-            for (var y = 0; y < this.height; y++) {
-                for (var x = 0; x < this.width; x++, i += 4) {
-                    if (y < 30 || y > this.height - 30)
-                        continue;
-                    if (x < 2 || x > 15)
-                        continue;
-
-                    var l = 100 - 100 * (y - 30) / (this.height - 60);
-                    var rgb = chroma.lch2rgb(l, this.lch[1], this.lch[2]);
-                    pixels[i] = rgb[0];
-                    pixels[i + 1] = rgb[1];
-                    pixels[i + 2] = rgb[2];
-                    pixels[i + 3] = 255;
-                }
-            }
-
-            // draw transparency slider
-            i = 0;
-            var rgb = chroma.lch2rgb(this.lch[0], this.lch[1], this.lch[2]);
-            for (var y = 0; y < this.height; y++) {
-                for (var x = 0; x < this.width; x++, i += 4) {
-                    if (y < 30 || y > this.height - 30)
-                        continue;
-                    if (x < this.width - 16 || x > this.width - 3)
-                        continue;
-
-                    // foreground alpha
-                    var f_a = 1 - (y - 30) / (this.height - 60);
-                    var f_r = rgb[0];
-                    var f_g = rgb[1];
-                    var f_b = rgb[2];
-
-                    // background checkerbox
-                    var horz = (Math.floor(x / 5) % 2 == 0);
-                    var vert = (Math.floor(y / 5) % 2 == 0);
-                    var val = (horz && !vert) || (!horz && vert) ? 250 : 200;
-                    var b_r = val;
-                    var b_g = val;
-                    var b_b = val;
-
-                    // blend foreground and background
-                    pixels[i] = (f_r * f_a) + (b_r * (1 - f_a));
-                    pixels[i + 1] = (f_g * f_a) + (b_g * (1 - f_a));
-                    pixels[i + 2] = (f_b * f_a) + (b_b * (1 - f_a));
-                    pixels[i + 3] = 255;
-                }
-            }
-
-            context.putImageData(imageData, 0, 0);
-
-            // draw rectangle around selected color in lightness slider
-            context.beginPath();
-            context.lineWidth = 1.5;
-            if (this.lch[0] > 50)
-                context.strokeStyle = '#2f2f2f'; // for dark selector on light background
-            else
-                context.strokeStyle = '#dfdfdf'; // for light selector on dark background
-            var lightnessY = 30 + (100 - this.lch[0]) / 100 * (this.height - 60);
-            lightnessY = Math.max(35 + 2, Math.min(this.height - 30 - 6, lightnessY)); // limit position
-            context.arc(9, lightnessY, 5, 0, 2 * Math.PI, false);
-            context.stroke();
-
-            // draw circle around selected color in wheel
-            context.beginPath();
-            if (this.alpha < 0.5)
-                context.strokeStyle = '#2f2f2f';
-            context.arc(picked_x, picked_y, 6, 0, 2 * Math.PI, false);
-            context.stroke();
-
-            // draw rectangle around selected tranparency
-            context.beginPath();
-            var alphaY = Math.min(this.height - 35, 30 + (1 - this.alpha) * (this.height - 60));
-            alphaY = Math.max(35 + 2, Math.min(this.height - 30 - 6, alphaY)); // limit position
-            context.arc(this.width - 9, alphaY, 5, 0, 2 * Math.PI, false);
-            context.stroke();
-        };
-        return ColorWheel;
-    })();
-    picolor.ColorWheel = ColorWheel;
-})(picolor || (picolor = {}));
-var picolor;
-(function (picolor) {
     var Palette = (function () {
         function Palette(containerDivID, options) {
             this.containerDivID = containerDivID;
-            // sequential palettes
-            this.bluePalette = chroma.scale(['#deebf7', '#08306b']).correctLightness(true);
-            this.orangePalette = chroma.scale(['#fee6ce', '#7f2704']).correctLightness(true);
-            this.greenPalette = chroma.scale(['#e5f5e0', '#00441b']).correctLightness(true);
-            this.grayPalette = chroma.scale(['#d9d9d9', 'black']).correctLightness(true);
-            // divergent palettes
-            this.brownWhiteSeagreenPalette1 = chroma.scale(['#543005', '#f5f5f5']).correctLightness(true);
-            this.brownWhiteSeagreenPalette2 = chroma.scale(['#f5f5f5', '#003c30']).correctLightness(true);
-            this.redYellowPurplePalette1 = chroma.scale(['#a50026', '#ffffbf']).correctLightness(true);
-            this.redYellowPurplePalette2 = chroma.scale(['#ffffbf', '#313695']).correctLightness(true);
+            this.blueRange = [chroma.hex('#deebf7'), chroma.hex('#08306b')];
+            this.orangeRange = [chroma.hex('#fee6ce'), chroma.hex('#7f2704')];
+            this.greenRange = [chroma.hex('#e5f5e0'), chroma.hex('#00441b')];
+            this.grayRange = [chroma.hex('#d9d9d9'), chroma.hex('#000000')];
+            this.brownWhiteRange = [chroma.hex('#543005'), chroma.hex('#f5f5f5')];
+            this.whiteSeagreenRange = [chroma.hex('#f5f5f5'), chroma.hex('#003c30')];
+            this.redYellowRange = [chroma.hex('#a50026'), chroma.hex('#ffffbf')];
+            this.yellowPurpleRange = [chroma.hex('#ffffbf'), chroma.hex('#313695')];
+            this.qualitativePaletteCount = 1;
+            this.brewerPairedRanges = [
+                [chroma.hex(chroma.brewer.Paired[0]), chroma.hex(chroma.brewer.Paired[1])],
+                [chroma.hex(chroma.brewer.Paired[2]), chroma.hex(chroma.brewer.Paired[3])],
+                [chroma.hex(chroma.brewer.Paired[4]), chroma.hex(chroma.brewer.Paired[5])],
+                [chroma.hex(chroma.brewer.Paired[6]), chroma.hex(chroma.brewer.Paired[7])],
+                [chroma.hex(chroma.brewer.Paired[8]), chroma.hex(chroma.brewer.Paired[9])],
+                [chroma.hex(chroma.brewer.Paired[10]), chroma.hex(chroma.brewer.Paired[11])]
+            ];
             this.margin = 10;
             this.pad = 10;
             this.h = 33;
             this.w = 33;
             this.palMatrix = [];
             this.selectedPalIdx = 0;
-            this.lighten = 0;
-            this.sequentialPalettes = [
-                this.grayPalette,
-                this.bluePalette,
-                this.greenPalette,
-                this.orangePalette
-            ];
-
-            this.divergentPalettes = [
-                [this.brownWhiteSeagreenPalette1, this.brownWhiteSeagreenPalette2],
-                [this.redYellowPurplePalette1, this.redYellowPurplePalette2]
-            ];
-
-            this.qualitativePalettes = [
-                chroma.brewer.Paired
-            ];
-
-            // set div IDs
+            this.isDraggingLightness = false;
             this.containerDivID = containerDivID;
             this.paletteCanvasDivID = this.containerDivID + '-canvas';
 
             if (options)
                 this.setOptions(options);
 
-            // add DOM structure
             var content = '<div style="background-color: #E0E0E0; padding 5px; cursor: pointer;">' + '	<canvas id="' + this.paletteCanvasDivID + '"></canvas>' + '</div>';
             var container = $('#' + this.containerDivID);
             container.empty();
             container.append(content);
 
-            // attach event handler
-            $('#' + this.paletteCanvasDivID).click(this.onClick.bind(this));
+            $('#' + this.paletteCanvasDivID).click(this.setPalette.bind(this));
         }
-        Palette.prototype.onClick = function (ev) {
+        Palette.prototype.generateScale = function (range) {
+            return chroma.scale([range[0].hex(), range[1].hex()]).correctLightness(true);
+        };
+
+        Object.defineProperty(Palette.prototype, "sequentialPalettes", {
+            get: function () {
+                var bluePalette = this.generateScale(this.blueRange);
+                var orangePalette = this.generateScale(this.orangeRange);
+                var greenPalette = this.generateScale(this.greenRange);
+                var grayPalette = this.generateScale(this.grayRange);
+
+                return [
+                    grayPalette,
+                    bluePalette,
+                    greenPalette,
+                    orangePalette
+                ];
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(Palette.prototype, "divergentPalettes", {
+            get: function () {
+                var scale = function (range) {
+                    return chroma.scale([range[0].hex(), range[1].hex()]).correctLightness(true);
+                };
+
+                var brownWhiteSeagreenPalette1 = chroma.scale([this.brownWhiteRange[0].hex(), this.brownWhiteRange[1].hex()]).correctLightness(true);
+                var brownWhiteSeagreenPalette2 = chroma.scale([this.whiteSeagreenRange[0].hex(), this.whiteSeagreenRange[1].hex()]).correctLightness(true);
+                var redYellowPurplePalette1 = chroma.scale([this.redYellowRange[0].hex(), this.redYellowRange[1].hex()]).correctLightness(true);
+                var redYellowPurplePalette2 = chroma.scale([this.yellowPurpleRange[0].hex(), this.yellowPurpleRange[1].hex()]).correctLightness(true);
+
+                return [
+                    [this.generateScale(this.brownWhiteRange), this.generateScale(this.whiteSeagreenRange)],
+                    [this.generateScale(this.redYellowRange), this.generateScale(this.yellowPurpleRange)]
+                ];
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(Palette.prototype, "brewerPairedScales", {
+            get: function () {
+                var brewerPairedScales = [];
+
+                for (var i = 0; i < this.brewerPairedRanges.length; i++) {
+                    var scale = this.generateScale(this.brewerPairedRanges[i]);
+                    brewerPairedScales.push(scale);
+                }
+
+                return brewerPairedScales;
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Palette.prototype.setPalette = function (ev) {
             var x = ev.pageX - this.offset.left;
             var y = ev.pageY - this.offset.top;
 
-            var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePalettes.length;
+            var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePaletteCount;
             var totWidth = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
 
             this.selectedPalIdx = Math.floor(x / (totWidth / numPals));
@@ -581,7 +280,7 @@ var picolor;
             var context = el.getContext('2d');
 
             var numCats = this.categoryCount;
-            var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePalettes.length;
+            var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePaletteCount;
 
             el.width = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
             el.height = this.margin * 2 + this.h * numCats;
@@ -608,25 +307,28 @@ var picolor;
                 this.palMatrix.push(palArr);
             }
 
-            for (var i = 0; i < this.qualitativePalettes.length; i++) {
-                var palArr = [];
-                var palStr = this.qualitativePalettes[i];
-
-                for (var j = 0; j < palStr.length && j < numCats; j++) {
-                    palArr.push(chroma.hex(palStr[j]));
-                }
-                this.palMatrix.push(palArr);
+            var palArr = [];
+            var interpolationsPerScale = 2;
+            if (this.brewerPairedScales.length * 2 < numCats) {
+                interpolationsPerScale = Math.ceil(numCats / this.brewerPairedScales.length);
             }
+
+            for (var i = 0; i < this.brewerPairedScales.length && palArr.length < numCats; i++) {
+                var pair = this.brewerPairedScales[i];
+                for (var j = 0; j < interpolationsPerScale && palArr.length < numCats; j++) {
+                    palArr.push(pair(j / (interpolationsPerScale - 1)));
+                }
+            }
+            this.palMatrix.push(palArr);
 
             for (var i = 0; i < this.palMatrix.length; i++) {
                 var palArr = this.palMatrix[i];
                 for (var j = 0; j < palArr.length; j++) {
-                    context.fillStyle = palArr[j];
+                    context.fillStyle = palArr[j].hex();
                     context.fillRect(this.margin + i * (this.w + this.pad), this.margin + j * this.h, this.w, this.h);
                 }
             }
 
-            // draw selected border
             context.strokeStyle = 'black';
             context.lineWidth = 2;
             context.strokeRect(this.margin - 2 + this.selectedPalIdx * (this.w + this.pad), this.margin - 2, this.w + 4, this.h * numCats + 4);
@@ -635,3 +337,317 @@ var picolor;
     })();
     picolor.Palette = Palette;
 })(picolor || (picolor = {}));
+var picolor;
+(function (picolor) {
+    var ColorWheel = (function () {
+        function ColorWheel(containerDivID, options) {
+            var _this = this;
+            this._lch = picolor.whiteToBlackInterpolator(0.4).lch();
+            this._alpha = 1;
+
+            this.width = 298;
+            this.height = 298;
+            this.cx = this.width / 2;
+            this.cy = this.height / 2;
+            this.radius = 119;
+
+            if (options)
+                this.setOptions(options);
+
+            this.containerDivID = containerDivID;
+            this.colorWheelDivID = this.containerDivID + '-colorwheel';
+
+            var content = '<div style="background-color: #E0E0E0; padding 5px">' + '	<canvas id="' + this.colorWheelDivID + '"></canvas>' + '</div>';
+
+            var container = $('#' + this.containerDivID);
+            container.empty();
+            container.append(content);
+
+            $('#' + this.colorWheelDivID).mouseleave(this.setWheelDragStateOff.bind(this));
+            $('#' + this.colorWheelDivID).mouseup(this.setWheelDragStateOff.bind(this));
+            $('#' + this.colorWheelDivID).mousedown(function (ev) {
+                _this.setWheelDragStateOn(ev);
+                _this.setWheelColor(ev);
+            });
+            $('#' + this.colorWheelDivID).mousemove(function (ev) {
+                _this.setCursor(ev);
+                _this.setWheelColor(ev);
+            });
+        }
+        ColorWheel.prototype.setOptions = function (options) {
+            if (options.color) {
+                this._lch = options.color.lch();
+                this._alpha = options.color.alpha();
+            }
+        };
+
+        ColorWheel.prototype.setWheelDragStateOn = function (ev) {
+            var x = ev.pageX - this.offset.left;
+            var y = ev.pageY - this.offset.top;
+
+            var rx = x - this.cx;
+            var ry = y - this.cy;
+            var d = Math.sqrt(rx * rx + ry * ry);
+            if (d < this.radius) {
+                this.isDraggingColor = true;
+            }
+
+            if (y >= 30 && y <= this.height - 30 && x >= 0 && x <= 18) {
+                this.isDraggingLightness = true;
+            }
+
+            if (y >= 30 && y <= this.height - 30 && x >= this.width - 19 && x <= this.width) {
+                this.isDraggingAlpha = true;
+            }
+        };
+
+        ColorWheel.prototype.setCursor = function (ev) {
+            if (this.isDraggingAlpha || this.isDraggingColor || this.isDraggingLightness)
+                return;
+
+            var x = ev.pageX - this.offset.left;
+            var y = ev.pageY - this.offset.top;
+
+            var rx = x - this.cx;
+            var ry = y - this.cy;
+            var d = Math.sqrt(rx * rx + ry * ry);
+            if (d < this.radius) {
+                $('#' + this.colorWheelDivID).css('cursor', 'crosshair');
+                return;
+            }
+
+            if (y >= 30 && y <= this.height - 30 && x >= 0 && x <= 18) {
+                $('#' + this.colorWheelDivID).css('cursor', 's-resize');
+                return;
+            }
+
+            if (y >= 30 && y <= this.height - 30 && x >= this.width - 19 && x <= this.width) {
+                $('#' + this.colorWheelDivID).css('cursor', 's-resize');
+                return;
+            }
+
+            $('#' + this.colorWheelDivID).css('cursor', 'default');
+        };
+
+        ColorWheel.prototype.setWheelColor = function (ev) {
+            if (!this.isDraggingAlpha && !this.isDraggingColor && !this.isDraggingLightness)
+                return;
+
+            var x = ev.pageX - this.offset.left;
+            var y = ev.pageY - this.offset.top;
+
+            if (this.isDraggingColor) {
+                var rx = x - this.cx;
+                var ry = y - this.cy;
+                var d = Math.min(this.radius, Math.sqrt(rx * rx + ry * ry));
+
+                var h = Math.atan2(ry, rx) * 180 / Math.PI;
+                var c = 100 * d / this.radius;
+                this.lch = [this.lch[0], c, h];
+            }
+
+            if (this.isDraggingLightness) {
+                var l = Math.max(0, Math.min(100, 100 - (y - 30) / (this.height - 60) * 100));
+                this.lch = [l, this.lch[1], this.lch[2]];
+            }
+
+            if (this.isDraggingAlpha) {
+                this.alpha = Math.max(0, Math.min(1, 1 - (y - 30) / (this.height - 60)));
+            }
+
+            $('#' + this.containerDivID).trigger('oncolorchange', [this.color]);
+        };
+
+        ColorWheel.prototype.setWheelDragStateOff = function (ev) {
+            this.isDraggingAlpha = false;
+            this.isDraggingColor = false;
+            this.isDraggingLightness = false;
+        };
+
+        Object.defineProperty(ColorWheel.prototype, "lch", {
+            get: function () {
+                return this._lch;
+            },
+            set: function (val) {
+                if (val[2] < 0)
+                    val[2] += 360;
+                if (val[2] >= 360)
+                    val[2] -= 360;
+
+                this._lch = val;
+
+                this.draw();
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(ColorWheel.prototype, "hex", {
+            get: function () {
+                return chroma.lch(this.lch[0], this.lch[1], this.lch[2]).hex();
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(ColorWheel.prototype, "alpha", {
+            get: function () {
+                return this._alpha;
+            },
+            set: function (val) {
+                this._alpha = val;
+                this.draw();
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        Object.defineProperty(ColorWheel.prototype, "color", {
+            get: function () {
+                var color = chroma.lch(this.lch[0], this.lch[1], this.lch[2]);
+                color.alpha(this._alpha);
+                return color;
+            },
+            set: function (val) {
+                this._lch = val.lch();
+                this._alpha = val.alpha();
+                this.draw();
+            },
+            enumerable: true,
+            configurable: true
+        });
+
+        ColorWheel.prototype.draw = function () {
+            this.offset = $('#' + this.colorWheelDivID).offset();
+
+            var el = document.getElementById(this.colorWheelDivID);
+            var context = el.getContext('2d');
+
+            var picked_x, picked_y;
+            var picked_dist = Number.MAX_VALUE;
+
+            el.width = this.width;
+            el.height = this.height;
+
+            var imageData = context.createImageData(this.width, this.height);
+            var pixels = imageData.data;
+
+            var i = 0;
+            for (var y = 0; y < this.height; y++) {
+                for (var x = 0; x < this.width; x++, i += 4) {
+                    var rx = x - this.cx;
+                    var ry = y - this.cy;
+                    var d = Math.sqrt(rx * rx + ry * ry);
+                    if (d < this.radius + 0.5) {
+                        var h = Math.atan2(ry, rx) * 180 / Math.PI;
+                        if (h < 0)
+                            h += 360;
+                        if (h > 360)
+                            h -= 360;
+                        var c = 100 * d / this.radius;
+
+                        var rgb = chroma.lch2rgb(this.lch[0], c, h);
+
+                        var dist = Math.sqrt(Math.pow(c - this.lch[1], 2) + Math.pow(h - this.lch[2], 2));
+                        if (dist < picked_dist) {
+                            picked_dist = dist;
+                            picked_x = x;
+                            picked_y = y;
+                        }
+
+                        var f_a = this.alpha;
+                        var f_r = rgb[0];
+                        var f_g = rgb[1];
+                        var f_b = rgb[2];
+
+                        var horz = (Math.floor(x / 5) % 2 == 0);
+                        var vert = (Math.floor(y / 5) % 2 == 0);
+                        var val = (horz && !vert) || (!horz && vert) ? 250 : 200;
+                        var b_r = val;
+                        var b_g = val;
+                        var b_b = val;
+
+                        pixels[i] = (f_r * f_a) + (b_r * (1 - f_a));
+                        pixels[i + 1] = (f_g * f_a) + (b_g * (1 - f_a));
+                        pixels[i + 2] = (f_b * f_a) + (b_b * (1 - f_a));
+
+                        pixels[i + 3] = 255 * Math.max(0, this.radius - d);
+                    }
+                }
+            }
+
+            i = 0;
+            for (var y = 0; y < this.height; y++) {
+                for (var x = 0; x < this.width; x++, i += 4) {
+                    if (y < 30 || y > this.height - 30)
+                        continue;
+                    if (x < 2 || x > 15)
+                        continue;
+
+                    var l = 100 - 100 * (y - 30) / (this.height - 60);
+                    var rgb = chroma.lch2rgb(l, this.lch[1], this.lch[2]);
+                    pixels[i] = rgb[0];
+                    pixels[i + 1] = rgb[1];
+                    pixels[i + 2] = rgb[2];
+                    pixels[i + 3] = 255;
+                }
+            }
+
+            i = 0;
+            var rgb = chroma.lch2rgb(this.lch[0], this.lch[1], this.lch[2]);
+            for (var y = 0; y < this.height; y++) {
+                for (var x = 0; x < this.width; x++, i += 4) {
+                    if (y < 30 || y > this.height - 30)
+                        continue;
+                    if (x < this.width - 16 || x > this.width - 3)
+                        continue;
+
+                    var f_a = 1 - (y - 30) / (this.height - 60);
+                    var f_r = rgb[0];
+                    var f_g = rgb[1];
+                    var f_b = rgb[2];
+
+                    var horz = (Math.floor(x / 5) % 2 == 0);
+                    var vert = (Math.floor(y / 5) % 2 == 0);
+                    var val = (horz && !vert) || (!horz && vert) ? 250 : 200;
+                    var b_r = val;
+                    var b_g = val;
+                    var b_b = val;
+
+                    pixels[i] = (f_r * f_a) + (b_r * (1 - f_a));
+                    pixels[i + 1] = (f_g * f_a) + (b_g * (1 - f_a));
+                    pixels[i + 2] = (f_b * f_a) + (b_b * (1 - f_a));
+                    pixels[i + 3] = 255;
+                }
+            }
+
+            context.putImageData(imageData, 0, 0);
+
+            context.beginPath();
+            context.lineWidth = 1.5;
+            if (this.lch[0] > 50)
+                context.strokeStyle = '#2f2f2f';
+            else
+                context.strokeStyle = '#dfdfdf';
+            var lightnessY = 30 + (100 - this.lch[0]) / 100 * (this.height - 60);
+            lightnessY = Math.max(35 + 2, Math.min(this.height - 30 - 6, lightnessY));
+            context.arc(9, lightnessY, 5, 0, 2 * Math.PI, false);
+            context.stroke();
+
+            context.beginPath();
+            if (this.alpha < 0.5)
+                context.strokeStyle = '#2f2f2f';
+            context.arc(picked_x, picked_y, 6, 0, 2 * Math.PI, false);
+            context.stroke();
+
+            context.beginPath();
+            var alphaY = Math.min(this.height - 35, 30 + (1 - this.alpha) * (this.height - 60));
+            alphaY = Math.max(35 + 2, Math.min(this.height - 30 - 6, alphaY));
+            context.arc(this.width - 9, alphaY, 5, 0, 2 * Math.PI, false);
+            context.stroke();
+        };
+        return ColorWheel;
+    })();
+    picolor.ColorWheel = ColorWheel;
+})(picolor || (picolor = {}));
+//# sourceMappingURL=picolor.js.map

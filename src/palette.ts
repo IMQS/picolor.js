@@ -7,21 +7,30 @@ module picolor {
 	export class Palette {
 		private _categoryCount: number;
 
-		// sequential palettes
-		private bluePalette: Chroma.Scale = chroma.scale(['#deebf7', '#08306b']).correctLightness(true);
-		private orangePalette: Chroma.Scale = chroma.scale(['#fee6ce', '#7f2704']).correctLightness(true);
-		private greenPalette: Chroma.Scale = chroma.scale(['#e5f5e0', '#00441b']).correctLightness(true);
-		private grayPalette: Chroma.Scale = chroma.scale(['#d9d9d9', 'black']).correctLightness(true);
+		// sequential palette ranges
+		private blueRange = [chroma.hex('#deebf7'), chroma.hex('#08306b')];
+		private orangeRange = [chroma.hex('#fee6ce'), chroma.hex('#7f2704')];
+		private greenRange = [chroma.hex('#e5f5e0'), chroma.hex('#00441b')];
+		private grayRange = [chroma.hex('#d9d9d9'), chroma.hex('#000000')];
 
-		// divergent palettes
-		private brownWhiteSeagreenPalette1: Chroma.Scale = chroma.scale(['#543005', '#f5f5f5']).correctLightness(true);
-		private brownWhiteSeagreenPalette2: Chroma.Scale = chroma.scale(['#f5f5f5', '#003c30']).correctLightness(true);
-		private redYellowPurplePalette1: Chroma.Scale = chroma.scale(['#a50026', '#ffffbf']).correctLightness(true);
-		private redYellowPurplePalette2: Chroma.Scale = chroma.scale(['#ffffbf', '#313695']).correctLightness(true);
+		// divergent palette ranges
+		//  brown-white-seagreen
+		private brownWhiteRange = [chroma.hex('#543005'), chroma.hex('#f5f5f5')];
+		private whiteSeagreenRange = [chroma.hex('#f5f5f5'), chroma.hex('#003c30')];
+		//	red-yellow-purple
+		private redYellowRange = [chroma.hex('#a50026'), chroma.hex('#ffffbf')];
+		private yellowPurpleRange = [chroma.hex('#ffffbf'), chroma.hex('#313695')];
 
-		private sequentialPalettes: Chroma.Scale[];
-		private divergentPalettes: Chroma.Scale[][];
-		private qualitativePalettes: string[][];
+		// qualitative palette ranges
+		private qualitativePaletteCount = 1;
+		private brewerPairedRanges = [
+			[chroma.hex(chroma.brewer.Paired[0]), chroma.hex(chroma.brewer.Paired[1])],
+			[chroma.hex(chroma.brewer.Paired[2]), chroma.hex(chroma.brewer.Paired[3])],
+			[chroma.hex(chroma.brewer.Paired[4]), chroma.hex(chroma.brewer.Paired[5])],
+			[chroma.hex(chroma.brewer.Paired[6]), chroma.hex(chroma.brewer.Paired[7])],
+			[chroma.hex(chroma.brewer.Paired[8]), chroma.hex(chroma.brewer.Paired[9])],
+			[chroma.hex(chroma.brewer.Paired[10]), chroma.hex(chroma.brewer.Paired[11])]
+		];
 
 		private paletteCanvasDivID;
 		private offset: JQueryCoordinates;
@@ -32,25 +41,10 @@ module picolor {
 
 		private palMatrix: Chroma.Color[][] = [];
 		private selectedPalIdx: number = 0;
-		private lighten: number = 0;
+
+		private isDraggingLightness: boolean = false;
 
 		constructor(public containerDivID: string, options?: PaletteOptions) {
-			this.sequentialPalettes = [
-				this.grayPalette,
-				this.bluePalette,
-				this.greenPalette,
-				this.orangePalette
-			];
-
-			this.divergentPalettes = [
-				[this.brownWhiteSeagreenPalette1, this.brownWhiteSeagreenPalette2],
-				[this.redYellowPurplePalette1, this.redYellowPurplePalette2]
-			];
-
-			this.qualitativePalettes = [
-				chroma.brewer.Paired
-			];
-
 			// set div IDs
 			this.containerDivID = containerDivID;
 			this.paletteCanvasDivID = this.containerDivID + '-canvas';
@@ -68,14 +62,61 @@ module picolor {
 			container.append(content);
 
 			// attach event handler
-			$('#' + this.paletteCanvasDivID).click(this.onClick.bind(this));
+			$('#' + this.paletteCanvasDivID).click(this.setPalette.bind(this));
+
 		}
 
-		private onClick(ev) {
+		private generateScale(range: Chroma.Color[]): Chroma.Scale {
+			return chroma.scale([range[0].hex(), range[1].hex()]).correctLightness(true);
+		}
+
+		private get sequentialPalettes(): Chroma.Scale[] {
+
+			var bluePalette = this.generateScale(this.blueRange);
+			var orangePalette = this.generateScale(this.orangeRange);
+			var greenPalette = this.generateScale(this.greenRange);
+			var grayPalette = this.generateScale(this.grayRange);
+
+			return [
+				grayPalette,
+				bluePalette,
+				greenPalette,
+				orangePalette
+			];
+		}
+
+		private get divergentPalettes(): Chroma.Scale[][] {
+			var scale = (range: Chroma.Color[]) => {
+				return chroma.scale([range[0].hex(), range[1].hex()]).correctLightness(true);
+			}
+
+			var brownWhiteSeagreenPalette1: Chroma.Scale = chroma.scale([this.brownWhiteRange[0].hex(), this.brownWhiteRange[1].hex()]).correctLightness(true);
+			var brownWhiteSeagreenPalette2: Chroma.Scale = chroma.scale([this.whiteSeagreenRange[0].hex(), this.whiteSeagreenRange[1].hex()]).correctLightness(true);
+			var redYellowPurplePalette1: Chroma.Scale = chroma.scale([this.redYellowRange[0].hex(), this.redYellowRange[1].hex()]).correctLightness(true);
+			var redYellowPurplePalette2: Chroma.Scale = chroma.scale([this.yellowPurpleRange[0].hex(), this.yellowPurpleRange[1].hex()]).correctLightness(true);
+
+			return [
+				[this.generateScale(this.brownWhiteRange), this.generateScale(this.whiteSeagreenRange)],
+				[this.generateScale(this.redYellowRange), this.generateScale(this.yellowPurpleRange)]
+			];
+		}
+
+		private get brewerPairedScales(): Chroma.Scale[] {
+			var brewerPairedScales = [];
+
+			for (var i = 0; i < this.brewerPairedRanges.length; i++) {
+				var scale = this.generateScale(this.brewerPairedRanges[i]);
+				brewerPairedScales.push(scale);
+			}
+
+			return brewerPairedScales;
+		}
+
+		private setPalette(ev) {
 			var x = ev.pageX - this.offset.left;
 			var y = ev.pageY - this.offset.top;
 
-			var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePalettes.length;
+			var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePaletteCount;
 			var totWidth = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
 
 			this.selectedPalIdx = Math.floor(x / (totWidth / numPals));
@@ -113,7 +154,7 @@ module picolor {
 			var context = el.getContext('2d');
 
 			var numCats = this.categoryCount;
-			var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePalettes.length;
+			var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePaletteCount;
 
 			el.width = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
 			el.height = this.margin * 2 + this.h * numCats;
@@ -142,22 +183,26 @@ module picolor {
 				this.palMatrix.push(palArr);
 			}
 
-			// qualitative palettes
-			for (var i = 0; i < this.qualitativePalettes.length; i++) {
-				var palArr: Chroma.Color[] = [];
-				var palStr = this.qualitativePalettes[i];
-				// TODO: interpolate colors for numCats > palStr.length
-				for (var j = 0; j < palStr.length && j < numCats; j++) {
-					palArr.push(chroma.hex(palStr[j]));
-				}
-				this.palMatrix.push(palArr);
+			// qualitative palettes (only paired brewer at the moment)
+			var palArr: Chroma.Color[] = [];
+			var interpolationsPerScale = 2; // default
+			if (this.brewerPairedScales.length * 2 < numCats) {
+				interpolationsPerScale = Math.ceil(numCats / this.brewerPairedScales.length);
 			}
+
+			for (var i = 0; i < this.brewerPairedScales.length && palArr.length < numCats; i++) {
+				var pair = this.brewerPairedScales[i];
+				for (var j = 0; j < interpolationsPerScale && palArr.length < numCats; j++) {
+					palArr.push(pair(j / (interpolationsPerScale-1)));
+				}
+			}
+			this.palMatrix.push(palArr);
 
 			// draw items from matrix
 			for (var i = 0; i < this.palMatrix.length; i++) {
 				var palArr = this.palMatrix[i];
 				for (var j = 0; j < palArr.length; j++) {
-					context.fillStyle = palArr[j];
+					context.fillStyle = palArr[j].hex();
 					context.fillRect(this.margin + i * (this.w + this.pad), this.margin + j * this.h, this.w, this.h);
 				}
 			}

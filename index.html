@@ -22,10 +22,10 @@
 
 			// $("#palette-picker").on("oncolorchange", (ev, palette) => { alert(palette) });
 			$("#basic-picker").on("oncolorchange", function (ev, color) {
-				colorWheel.color = color;
+				colorWheel.lch = color.lch();
 			});
 			$("#color-wheel").on("oncolorchange", function (ev, color) {
-				basicPicker.color = color;
+				basicPicker.lch = color.lch();
 			});
 		}
 	</script>

@@ -98,6 +98,16 @@ module picolor {
 			// Remove all old click handlers - if you don't do this it destroys performance
 			$('#' + this.containerDivID).off('click');
 
+			var colorDiff = (col1: Chroma.Color, col2: Chroma.Color) => {
+				// ignore alpha matching
+				var rgb1 = col1.rgb();
+				var rgb2 = col2.rgb();
+				var rDiff = rgb1[0] - rgb2[0];
+				var gDiff = rgb1[1] - rgb2[1];
+				var bDiff = rgb1[2] - rgb2[2];
+				return Math.sqrt(rDiff*rDiff + gDiff*gDiff + bDiff*bDiff);
+			}
+
 			var genSpectrumContent = (spectrum: Chroma.Color[], containerID: string) => {
 				var content = '';
 				for (var i = 0; i < spectrum.length; i++) {
@@ -109,7 +119,7 @@ module picolor {
 					'padding: 1px;' +
 					'background-color: #E0E0E0;' +
 					'margin: 0px 4px 0px 4px;';
-					if (this.color.hex() === spectrum[i].hex()) // ignore alpha matching
+					if (colorDiff(this.color, spectrum[i]) < 1) 
 						content += ' border: 2px solid black;';
 					else
 						content += ' border: 2px solid #E0E0E0;';
