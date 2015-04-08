@@ -133,7 +133,7 @@ module picolor {
 			var result = [];
 			var pal = this.paletteMatrix()[this.selectedPalIdx];
 			for (var i = 0; i < pal.length; i++) {
-				result.push(pal[i].hex());
+				result.push(pal[i]);
 			}
 			return result;
 		}
