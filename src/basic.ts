@@ -24,17 +24,13 @@ module picolor {
 	export var whiteToBlackInterpolator = chroma.scale(['white', 'black']).correctLightness(true);
 
 	export class BasicPicker {
-		private _lch: number[];
-		private _alpha: number;
+		private _lch: number[] = picolor.whiteToBlackInterpolator(0.4).lch();
+		private _alpha: number = 1;
 		private containerDivID: string;
 		private colorBandDivID: string;
 		private blackToWhiteBandDivID: string;
 
 		constructor(containerDivID: string, options?: BasicPickerOptions) {
-			// set defaults
-			this._lch = picolor.whiteToBlackInterpolator(0.4).lch();	// default = white
-			this._alpha = 1;											// default = opaque
-
 			if (options)
 				this.setOptions(options);
 
@@ -105,7 +101,7 @@ module picolor {
 				var rDiff = rgb1[0] - rgb2[0];
 				var gDiff = rgb1[1] - rgb2[1];
 				var bDiff = rgb1[2] - rgb2[2];
-				return Math.sqrt(rDiff*rDiff + gDiff*gDiff + bDiff*bDiff);
+				return Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff);
 			}
 
 			var genSpectrumContent = (spectrum: Chroma.Color[], containerID: string) => {
@@ -119,7 +115,7 @@ module picolor {
 					'padding: 1px;' +
 					'background-color: #E0E0E0;' +
 					'margin: 0px 4px 0px 4px;';
-					if (colorDiff(this.color, spectrum[i]) < 1) 
+					if (colorDiff(this.color, spectrum[i]) < 1)
 						content += ' border: 2px solid black;';
 					else
 						content += ' border: 2px solid #E0E0E0;';

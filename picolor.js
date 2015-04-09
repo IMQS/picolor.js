@@ -22,7 +22,6 @@ var picolor;
         function BasicPicker(containerDivID, options) {
             this._lch = picolor.whiteToBlackInterpolator(0.4).lch();
             this._alpha = 1;
-
             if (options)
                 this.setOptions(options);
 
@@ -136,6 +135,8 @@ var picolor;
     var Palette = (function () {
         function Palette(containerDivID, options) {
             this.containerDivID = containerDivID;
+            this._categoryCount = 3;
+            this._alpha = 1;
             this.blueRange = [chroma.hex('#deebf7'), chroma.hex('#08306b')];
             this.orangeRange = [chroma.hex('#fee6ce'), chroma.hex('#7f2704')];
             this.greenRange = [chroma.hex('#e5f5e0'), chroma.hex('#00441b')];
@@ -172,6 +173,18 @@ var picolor;
 
             $('#' + this.paletteCanvasDivID).click(this.setPalette.bind(this));
         }
+        Object.defineProperty(Palette.prototype, "alpha", {
+            get: function () {
+                return this._alpha;
+            },
+            set: function (val) {
+                this._alpha = val;
+                this.draw();
+            },
+            enumerable: true,
+            configurable: true
+        });
+
         Palette.prototype.generateScale = function (range) {
             return chroma.scale([range[0].hex(), range[1].hex()]).correctLightness(true);
         };
@@ -315,6 +328,87 @@ var picolor;
             return m;
         };
 
+        Palette.prototype.drawCheckerboxAndTransparencySlider = function (el, context, palMatrix) {
+            var b = 0;
+
+            var imageData = context.createImageData(el.width, el.height);
+            var pixels = imageData.data;
+            var i = 0;
+            for (var y = 0; y < el.height; y++) {
+                for (var x = 0; x < el.width; x++, i += 4) {
+                    if (y < this.margin || y > (el.height - this.margin - b - 1))
+                        continue;
+
+                    if (x < this.margin || x > (el.width - this.margin - 1))
+                        continue;
+                    if ((x - this.margin) % (this.w + this.pad) >= this.w)
+                        continue;
+                    var horz = (Math.floor(x / 5) % 2 == 0);
+                    var vert = (Math.floor(y / 5) % 2 == 0);
+                    var val = (horz && !vert) || (!horz && vert) ? 250 : 200;
+                    pixels[i] = val;
+                    pixels[i + 1] = val;
+                    pixels[i + 2] = val;
+                    pixels[i + 3] = 255;
+                }
+            }
+
+            var i = 0;
+            for (var y = 0; y < el.height; y++) {
+                for (var x = 0; x < el.width; x++, i += 4) {
+                    if (y < el.height - this.margin - 14)
+                        continue;
+                    if (y > el.height - this.margin - 1)
+                        continue;
+                    if (x < this.margin || x > (el.width - this.margin - 1))
+                        continue;
+
+                    var horz = (Math.floor(x / 5) % 2 == 0);
+                    var vert = (Math.floor(y / 5) % 2 == 0);
+                    var val = (horz && !vert) || (!horz && vert) ? 250 : 200;
+                    var b_r = val;
+                    var b_g = val;
+                    var b_b = val;
+
+                    var rgb = palMatrix[this.selectedPalIdx][this.categoryCount - 1].rgb();
+                    var f_a = 1 - (x - this.margin) / (el.width - 2 * this.margin);
+                    var f_r = rgb[0];
+                    var f_g = rgb[1];
+                    var f_b = rgb[2];
+
+                    pixels[i] = (f_r * f_a) + (b_r * (1 - f_a));
+                    pixels[i + 1] = (f_g * f_a) + (b_g * (1 - f_a));
+                    pixels[i + 2] = (f_b * f_a) + (b_b * (1 - f_a));
+                    pixels[i + 3] = 255;
+                }
+            }
+            context.putImageData(imageData, 0, 0);
+        };
+
+        Palette.prototype.drawPalettes = function (context, palMatrix) {
+            context.globalAlpha = this.alpha;
+            for (var i = 0; i < palMatrix.length; i++) {
+                var palArr = palMatrix[i];
+                for (var j = 0; j < palArr.length; j++) {
+                    context.fillStyle = palArr[j].css();
+                    context.fillRect(this.margin + i * (this.w + this.pad), this.margin + j * this.h, this.w, this.h);
+                }
+            }
+        };
+
+        Palette.prototype.drawPaletteSelection = function (context) {
+            context.globalAlpha = 1;
+            context.strokeStyle = 'black';
+            context.lineWidth = 1.5;
+            context.strokeRect(this.margin - 2 + this.selectedPalIdx * (this.w + this.pad), this.margin - 2, this.w + 4, this.h * this.categoryCount + 4);
+        };
+
+        Palette.prototype.drawTransparencySelection = function (context) {
+        };
+
+        Palette.prototype.drawLightnessSelection = function (context) {
+        };
+
         Palette.prototype.draw = function () {
             this.offset = $('#' + this.paletteCanvasDivID).offset();
 
@@ -324,22 +418,17 @@ var picolor;
             var numCats = this.categoryCount;
             var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePaletteCount;
 
+            var b = 0;
             el.width = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
-            el.height = this.margin * 2 + this.h * numCats;
+            el.height = this.margin * 2 + this.h * numCats + b;
 
             var palMatrix = this.paletteMatrix();
 
-            for (var i = 0; i < palMatrix.length; i++) {
-                var palArr = palMatrix[i];
-                for (var j = 0; j < palArr.length; j++) {
-                    context.fillStyle = palArr[j].hex();
-                    context.fillRect(this.margin + i * (this.w + this.pad), this.margin + j * this.h, this.w, this.h);
-                }
-            }
+            this.drawPalettes(context, palMatrix);
 
-            context.strokeStyle = 'black';
-            context.lineWidth = 2;
-            context.strokeRect(this.margin - 2 + this.selectedPalIdx * (this.w + this.pad), this.margin - 2, this.w + 4, this.h * numCats + 4);
+            this.drawPaletteSelection(context);
+            this.drawTransparencySelection(context);
+            this.drawLightnessSelection(context);
         };
         return Palette;
     })();
@@ -352,12 +441,11 @@ var picolor;
             var _this = this;
             this._lch = picolor.whiteToBlackInterpolator(0.4).lch();
             this._alpha = 1;
-
             this.width = 298;
             this.height = 298;
+            this.radius = 119;
             this.cx = this.width / 2;
             this.cy = this.height / 2;
-            this.radius = 119;
 
             if (options)
                 this.setOptions(options);

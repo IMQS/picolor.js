@@ -5,7 +5,8 @@ module picolor {
 	}
 
 	export class Palette {
-		private _categoryCount: number;
+		private _categoryCount: number = 3;
+		private _alpha: number = 1;
 
 		// sequential palette ranges
 		private blueRange = [chroma.hex('#deebf7'), chroma.hex('#08306b')];
@@ -63,6 +64,14 @@ module picolor {
 			// attach event handler
 			$('#' + this.paletteCanvasDivID).click(this.setPalette.bind(this));
 
+		}
+
+		get alpha(): number {
+			return this._alpha;
+		}
+		set alpha(val: number) {
+			this._alpha = val;
+			this.draw();
 		}
 
 		private generateScale(range: Chroma.Color[]): Chroma.Scale {
@@ -146,7 +155,7 @@ module picolor {
 			this.draw();
 		}
 
-		private paletteMatrix(): Chroma.Color[][]{
+		private paletteMatrix(): Chroma.Color[][] {
 			var m = [];
 			var numCats = this.categoryCount;
 
@@ -192,6 +201,87 @@ module picolor {
 			return m;
 		}
 
+		private drawCheckerboxAndTransparencySlider(el: HTMLCanvasElement, context: CanvasRenderingContext2D, palMatrix: Chroma.Color[][]) {
+
+			var b = 0;
+
+			var imageData = context.createImageData(el.width, el.height);
+			var pixels = imageData.data;
+			var i = 0;
+			for (var y = 0; y < el.height; y++) {
+				for (var x = 0; x < el.width; x++, i += 4) {
+					if (y < this.margin || y > (el.height - this.margin - b - 1)) continue;
+
+					if (x < this.margin || x > (el.width - this.margin - 1)) continue;
+					if ((x - this.margin) % (this.w + this.pad) >= this.w) continue;
+					var horz = (Math.floor(x / 5) % 2 == 0);
+					var vert = (Math.floor(y / 5) % 2 == 0);
+					var val = (horz && !vert) || (!horz && vert) ? 250 : 200;
+					pixels[i] = val;
+					pixels[i + 1] = val;
+					pixels[i + 2] = val;
+					pixels[i + 3] = 255;
+				}
+			}
+
+			var i = 0;
+			for (var y = 0; y < el.height; y++) {
+				for (var x = 0; x < el.width; x++, i += 4) {
+					if (y < el.height - this.margin - 14) continue;
+					if (y > el.height - this.margin - 1) continue;
+					if (x < this.margin || x > (el.width - this.margin - 1)) continue;
+
+					// background checkerbox
+					var horz = (Math.floor(x / 5) % 2 == 0);
+					var vert = (Math.floor(y / 5) % 2 == 0);
+					var val = (horz && !vert) || (!horz && vert) ? 250 : 200;
+					var b_r = val;
+					var b_g = val;
+					var b_b = val;
+
+					// foreground alpha
+					var rgb = palMatrix[this.selectedPalIdx][this.categoryCount - 1].rgb(); // pick last value in palette
+					var f_a = 1 - (x - this.margin) / (el.width - 2 * this.margin);
+					var f_r = rgb[0];
+					var f_g = rgb[1];
+					var f_b = rgb[2];
+
+					// blend foreground and background
+					pixels[i] = (f_r * f_a) + (b_r * (1 - f_a));
+					pixels[i + 1] = (f_g * f_a) + (b_g * (1 - f_a));
+					pixels[i + 2] = (f_b * f_a) + (b_b * (1 - f_a));
+					pixels[i + 3] = 255;
+				}
+			}
+			context.putImageData(imageData, 0, 0);
+		}
+
+		private drawPalettes(context: CanvasRenderingContext2D, palMatrix: Chroma.Color[][]) {
+			context.globalAlpha = this.alpha;
+			for (var i = 0; i < palMatrix.length; i++) {
+				var palArr = palMatrix[i];
+				for (var j = 0; j < palArr.length; j++) {
+					context.fillStyle = palArr[j].css();
+					context.fillRect(this.margin + i * (this.w + this.pad), this.margin + j * this.h, this.w, this.h);
+				}
+			}
+		}
+
+		private drawPaletteSelection(context: CanvasRenderingContext2D) {
+			context.globalAlpha = 1;
+			context.strokeStyle = 'black';
+			context.lineWidth = 1.5;
+			context.strokeRect(this.margin - 2 + this.selectedPalIdx * (this.w + this.pad), this.margin - 2, this.w + 4, this.h * this.categoryCount + 4);
+		}
+
+		private drawTransparencySelection(context: CanvasRenderingContext2D) {
+
+		}
+
+		private drawLightnessSelection(context: CanvasRenderingContext2D) {
+
+		}
+
 		draw() {
 			this.offset = $('#' + this.paletteCanvasDivID).offset();
 
@@ -201,24 +291,18 @@ module picolor {
 			var numCats = this.categoryCount;
 			var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePaletteCount;
 
+			var b = 0;
 			el.width = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
-			el.height = this.margin * 2 + this.h * numCats;
+			el.height = this.margin * 2 + this.h * numCats + b;
 
 			var palMatrix = this.paletteMatrix();
+			// this.drawCheckerboxAndTransparencySlider(el, context, palMatrix);
+			this.drawPalettes(context, palMatrix);
 
-			// draw items from matrix
-			for (var i = 0; i < palMatrix.length; i++) {
-				var palArr = palMatrix[i];
-				for (var j = 0; j < palArr.length; j++) {
-					context.fillStyle = palArr[j].hex();
-					context.fillRect(this.margin + i * (this.w + this.pad), this.margin + j * this.h, this.w, this.h);
-				}
-			}
-
-			// draw selected border
-			context.strokeStyle = 'black';
-			context.lineWidth = 2;
-			context.strokeRect(this.margin - 2 + this.selectedPalIdx * (this.w + this.pad), this.margin - 2, this.w + 4, this.h * numCats + 4);
+			// draw selections
+			this.drawPaletteSelection(context);
+			this.drawTransparencySelection(context);
+			this.drawLightnessSelection(context);
 		}
 	}
 }

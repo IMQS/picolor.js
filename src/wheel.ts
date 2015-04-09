@@ -5,32 +5,25 @@ module picolor {
 	}
 
 	export class ColorWheel {
-		private _lch: number[];
-		private _alpha: number;
+		private _lch: number[] = picolor.whiteToBlackInterpolator(0.4).lch();
+		private _alpha: number = 1;
 		private containerDivID: string;
 		private colorWheelDivID: string;
 		private isDraggingLightness: boolean;
 		private isDraggingColor: boolean;
 		private isDraggingAlpha: boolean;
 
-		private width: number;
-		private height: number;
+		private width: number = 298;
+		private height: number = 298;
 		private cx: number;
 		private cy: number;
-		private radius: number;
+		private radius: number = 119;
 		private offset: JQueryCoordinates;
 
 		constructor(containerDivID: string, options?: ColorWheelOptions) {
-			// set defaults
-			this._lch = picolor.whiteToBlackInterpolator(0.4).lch();	// default = white
-			this._alpha = 1;											// default = opaque
-
 			// defaults
-			this.width = 298;
-			this.height = 298;
 			this.cx = this.width / 2;
 			this.cy = this.height / 2;
-			this.radius = 119;
 
 			if (options)
 				this.setOptions(options);
@@ -173,7 +166,7 @@ module picolor {
 
 			this._lch = val;
 
-			this.draw(); // redraw control
+			this.draw();
 		}
 
 		get hex(): string {
@@ -185,7 +178,7 @@ module picolor {
 		}
 		set alpha(val: number) {
 			this._alpha = val;
-			this.draw(); // redraw control
+			this.draw();
 		}
 
 		get color(): Chroma.Color {
