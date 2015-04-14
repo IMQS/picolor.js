@@ -1,5 +1,47 @@
 module picolor {
 
+	export function lch2rgb(l, c, h): Uint8Array {
+
+		var lab_xyz = function (x) {
+			if (x > 0.206893034) {
+				return x * x * x;
+			} else {
+				return (x - 4 / 29) / 7.787037;
+			}
+		};
+
+		var xyz_rgb = function (r) {
+			return Math.round(255 * (r <= 0.00304 ? 12.92 * r : 1.055 * Math.pow(r, 1 / 2.4) - 0.055));
+		};
+
+		var rgbCap = function (x) {
+			return Math.max(0, Math.min(255, x));
+		};
+
+		var rgb = new Uint8Array(3);
+
+		// convert to Lab		
+		var h1 = h * Math.PI / 180;
+		var a = Math.cos(h1) * c;
+		var b = Math.sin(h1) * c;
+
+		// convert to rgb
+		var X = 0.950470;
+		var Y = 1;
+		var Z = 1.088830;
+		var y = (l + 16) / 116;
+		var x = y + a / 500;
+		var z = y - b / 200;
+		x = lab_xyz(x) * X;
+		y = lab_xyz(y) * Y;
+		z = lab_xyz(z) * Z;
+		rgb[0] = rgbCap(xyz_rgb(3.2404542 * x - 1.5371385 * y - 0.4985314 * z));
+		rgb[1] = rgbCap(xyz_rgb(-0.9692660 * x + 1.8760108 * y + 0.0415560 * z));
+		rgb[2] = rgbCap(xyz_rgb(0.0556434 * x - 0.2040259 * y + 1.0572252 * z));
+
+		return rgb;
+	}
+
 	export interface ColorWheelOptions {
 		color?: Chroma.Color;
 	}
@@ -226,15 +268,12 @@ module picolor {
 			var el: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById(this.colorWheelDivID);
 			var context = el.getContext('2d');
 
-			var picked_dist = Number.MAX_VALUE;
-
-
-
 			var pixels = this.imageDataCache.data;
 
+			var i = 0;
 			if (recalcImageData) {
 				// draw wheel
-				var i = 0;
+				var picked_dist = Number.MAX_VALUE;
 				for (var y = 0; y < this.height; y++) {
 					for (var x = 0; x < this.width; x++, i += 4) {
 						var rx = x - this.cx;
@@ -248,7 +287,7 @@ module picolor {
 							if (h > 360) h -= 360;
 							var c = 100 * d / this.radius;
 
-							var rgb = chroma.lch2rgb(this.lch[0], c, h);
+							var rgb = picolor.lch2rgb(this.lch[0], c, h);
 
 							var dist = Math.sqrt(Math.pow(c - this.lch[1], 2) + Math.pow(h - this.lch[2], 2));
 							if (dist < picked_dist) {
@@ -290,7 +329,7 @@ module picolor {
 					if (x < 2 || x > 15) continue;
 
 					var l = 100 - 100 * (y - 30) / (this.height - 60);
-					var rgb = chroma.lch2rgb(l, this.lch[1], this.lch[2]);
+					var rgb = picolor.lch2rgb(l, this.lch[1], this.lch[2]);
 					pixels[i] = rgb[0];
 					pixels[i + 1] = rgb[1];
 					pixels[i + 2] = rgb[2];
@@ -300,7 +339,7 @@ module picolor {
 
 			// draw transparency slider
 			i = 0;
-			var rgb = chroma.lch2rgb(this.lch[0], this.lch[1], this.lch[2]);
+			var rgb = picolor.lch2rgb(this.lch[0], this.lch[1], this.lch[2]);
 			for (var y = 0; y < this.height; y++) {
 				for (var x = 0; x < this.width; x++, i += 4) {
 					if (y < 30 || y > this.height - 30) continue;
