@@ -13,6 +13,11 @@ module picolor {
 		private isDraggingColor: boolean;
 		private isDraggingAlpha: boolean;
 
+		private imageDataCache: ImageData;
+
+		private picked_x: number;
+		private picked_y: number;
+
 		private width: number = 298;
 		private height: number = 298;
 		private cx: number;
@@ -41,6 +46,12 @@ module picolor {
 			var container = $('#' + this.containerDivID);
 			container.empty();
 			container.append(content);
+
+			var el: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById(this.colorWheelDivID);
+			el.width = this.width;
+			el.height = this.height;
+			var context = el.getContext('2d');
+			this.imageDataCache = context.createImageData(this.width, this.height);
 
 			// hook up event handlers
 			$('#' + this.colorWheelDivID).mouseleave(this.setWheelDragStateOff.bind(this));
@@ -127,7 +138,18 @@ module picolor {
 			if (this.isDraggingColor) {
 				var rx = x - this.cx;
 				var ry = y - this.cy;
-				var d = Math.min(this.radius, Math.sqrt(rx * rx + ry * ry));
+
+				var d = Math.sqrt(rx * rx + ry * ry);
+				this.picked_x = x;
+				this.picked_y = y;
+
+				if (d > this.radius) { // cursor is outside wheel, pick closest point inside wheel
+					d = this.radius;
+					var ry1 = this.radius * ry / Math.sqrt(rx * rx + ry * ry);
+					var rx1 = this.radius * rx / Math.sqrt(rx * rx + ry * ry);
+					this.picked_y = ry1 + this.cy;
+					this.picked_x = rx1 + this.cx;
+				}
 
 				// keep l constant when we select another color on the wheel
 				var h = Math.atan2(ry, rx) * 180 / Math.PI;
@@ -164,9 +186,10 @@ module picolor {
 			if (val[2] < 0) val[2] += 360;
 			if (val[2] >= 360) val[2] -= 360;
 
+			var recalcImageData = this._lch[0] != val[0];
 			this._lch = val;
 
-			this.draw();
+			this.draw(recalcImageData);
 		}
 
 		get hex(): string {
@@ -178,7 +201,7 @@ module picolor {
 		}
 		set alpha(val: number) {
 			this._alpha = val;
-			this.draw();
+			this.draw(true);
 		}
 
 		get color(): Chroma.Color {
@@ -187,72 +210,74 @@ module picolor {
 			return color;
 		}
 		set color(val: Chroma.Color) {
-			this._lch = val.lch();
-			this._alpha = val.alpha();
-			this.draw();
+			var newLch = val.lch();
+			var newAlpha = val.alpha();
+			var recalcImageData = (this._lch[0] != newLch[0]) || (this._alpha != newAlpha);
+			this._lch = newLch;
+			this._alpha = newAlpha;
+			this.draw(recalcImageData);
 		}
 
-		draw() {
-			// TODO: add scaling based on container size rather than harcoded size
+		draw(recalcImageData: boolean = true) {
+			// TODO: add scaling based on container size rather than hardcoded size
 
 			this.offset = $('#' + this.colorWheelDivID).offset();
 
 			var el: HTMLCanvasElement = <HTMLCanvasElement>document.getElementById(this.colorWheelDivID);
 			var context = el.getContext('2d');
 
-			var picked_x, picked_y: number; // canvas coordinates of picked color
 			var picked_dist = Number.MAX_VALUE;
 
-			el.width = this.width;
-			el.height = this.height;
 
-			var imageData = context.createImageData(this.width, this.height);
-			var pixels = imageData.data;
 
-			// draw wheel
-			var i = 0;
-			for (var y = 0; y < this.height; y++) {
-				for (var x = 0; x < this.width; x++, i += 4) {
-					var rx = x - this.cx;
-					var ry = y - this.cy;
-					var d = Math.sqrt(rx * rx + ry * ry);
-					if (d < this.radius + 0.5) {
+			var pixels = this.imageDataCache.data;
 
-						// get foreground color
-						var h = Math.atan2(ry, rx) * 180 / Math.PI;
-						if (h < 0) h += 360;
-						if (h > 360) h -= 360;
-						var c = 100 * d / this.radius;
+			if (recalcImageData) {
+				// draw wheel
+				var i = 0;
+				for (var y = 0; y < this.height; y++) {
+					for (var x = 0; x < this.width; x++, i += 4) {
+						var rx = x - this.cx;
+						var ry = y - this.cy;
+						var d = Math.sqrt(rx * rx + ry * ry);
+						if (d < this.radius + 0.5) {
 
-						var rgb = chroma.lch2rgb(this.lch[0], c, h);
+							// get foreground color
+							var h = Math.atan2(ry, rx) * 180 / Math.PI;
+							if (h < 0) h += 360;
+							if (h > 360) h -= 360;
+							var c = 100 * d / this.radius;
 
-						var dist = Math.sqrt(Math.pow(c - this.lch[1], 2) + Math.pow(h - this.lch[2], 2));
-						if (dist < picked_dist) {
-							picked_dist = dist;
-							picked_x = x;
-							picked_y = y;
+							var rgb = chroma.lch2rgb(this.lch[0], c, h);
+
+							var dist = Math.sqrt(Math.pow(c - this.lch[1], 2) + Math.pow(h - this.lch[2], 2));
+							if (dist < picked_dist) {
+								picked_dist = dist;
+								this.picked_x = x;
+								this.picked_y = y;
+							}
+
+							var f_a = this.alpha;
+							var f_r = rgb[0];
+							var f_g = rgb[1];
+							var f_b = rgb[2];
+
+							// get background checkerbox to display alpha
+							var horz = (Math.floor(x / 5) % 2 == 0);
+							var vert = (Math.floor(y / 5) % 2 == 0);
+							var val = (horz && !vert) || (!horz && vert) ? 250 : 200;
+							var b_r = val;
+							var b_g = val;
+							var b_b = val;
+
+							// blend foreground and background
+							pixels[i] = (f_r * f_a) + (b_r * (1 - f_a));
+							pixels[i + 1] = (f_g * f_a) + (b_g * (1 - f_a));
+							pixels[i + 2] = (f_b * f_a) + (b_b * (1 - f_a));
+
+							// anti-alias
+							pixels[i + 3] = 255 * Math.max(0, this.radius - d);
 						}
-
-						var f_a = this.alpha;
-						var f_r = rgb[0];
-						var f_g = rgb[1];
-						var f_b = rgb[2];
-
-						// get background checkerbox to display alpha
-						var horz = (Math.floor(x / 5) % 2 == 0);
-						var vert = (Math.floor(y / 5) % 2 == 0);
-						var val = (horz && !vert) || (!horz && vert) ? 250 : 200;
-						var b_r = val;
-						var b_g = val;
-						var b_b = val;
-
-						// blend foreground and background
-						pixels[i] = (f_r * f_a) + (b_r * (1 - f_a));
-						pixels[i + 1] = (f_g * f_a) + (b_g * (1 - f_a));
-						pixels[i + 2] = (f_b * f_a) + (b_b * (1 - f_a));
-
-						// anti-alias
-						pixels[i + 3] = 255 * Math.max(0, this.radius - d);
 					}
 				}
 			}
@@ -303,7 +328,8 @@ module picolor {
 				}
 			}
 
-			context.putImageData(imageData, 0, 0);
+
+			context.putImageData(this.imageDataCache, 0, 0);
 
 			// draw rectangle around selected color in lightness slider
 			context.beginPath();
@@ -321,7 +347,7 @@ module picolor {
 			context.beginPath();
 			if (this.alpha < 0.5)
 				context.strokeStyle = '#2f2f2f';
-			context.arc(picked_x, picked_y, 6, 0, 2 * Math.PI, false);
+			context.arc(this.picked_x, this.picked_y, 6, 0, 2 * Math.PI, false);
 			context.stroke();
 
 			// draw rectangle around selected tranparency
