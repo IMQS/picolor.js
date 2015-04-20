@@ -44,7 +44,7 @@ module picolor {
 				'<div>' +
 				'	<div id="' + this.colorBandDivID + '-0' + '"></div>' +
 				'	<div id="' + this.colorBandDivID + '-1' + '"></div>' +
-				'	<div id="' + this.blackToWhiteBandDivID + '" style="margin-top: 6px"></div>' +
+				'	<div id="' + this.blackToWhiteBandDivID + '"></div>' +
 				'</div>';
 
 			var container = $('#' + this.containerDivID);
@@ -127,10 +127,22 @@ module picolor {
 						this.lch = ev.data.lch();
 						$('#' + this.containerDivID).trigger('oncolorchange', [this.color]);
 					});
+
+					var hovering = function (ev: JQueryEventObject): any {
+						if (colorDiff(this.color, ev.data.blockcolor) >= 1) {
+							ev.data.mousentering ? $('#' + ev.data.blockid).css('border', '2px solid gray') : $('#' + ev.data.blockid).css('border', '2px solid #E0E0E0');
+						}
+					};
+					$('#' + this.containerDivID).on('mouseenter', '#' + divID, { blockcolor: spectrum[i], mousentering: true, blockid: divID }, hovering.bind(this));
+					$('#' + this.containerDivID).on('mouseleave', '#' + divID, { blockcolor: spectrum[i], mousentering: false, blockid: divID }, hovering.bind(this));
 				}
+
 				$('#' + containerID).empty();
 				$('#' + containerID).append(content);
+
 			}
+
+			
 
 			var blackWhiteSpectrum = [];
 			var step = 0.2

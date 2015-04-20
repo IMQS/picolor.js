@@ -64,6 +64,22 @@ module picolor {
 			// attach event handler
 			$('#' + this.paletteCanvasDivID).click(this.setPalette.bind(this));
 
+			// attach hovering functionality
+			$('#' + this.containerDivID).on('mousemove', '#' + this.paletteCanvasDivID, { hoverColor: 'gray' },this.onHover.bind(this));
+			$('#' + this.containerDivID).on('mouseleave', '#' + this.paletteCanvasDivID, { hoverColor: '#E0E0E0' }, this.onHover.bind(this));
+
+		}
+
+		private onHover(ev: JQueryEventObject) {
+			var hoverindex = this.resolvePaletteIndex(ev.clientX, ev.clientY);
+			if (this.selectedPalIdx === hoverindex)
+				return;
+			var el = <HTMLCanvasElement>document.getElementById(this.paletteCanvasDivID);
+			for (var k = 0; k < 7; k++) {
+				if (this.selectedPalIdx !== k)
+					this.drawPaletteBorder(k, el.getContext('2d'), '#E0E0E0');
+			}			
+			this.drawPaletteBorder(hoverindex, el.getContext('2d'), ev.data.hoverColor);
 		}
 
 		get alpha(): number {
@@ -119,15 +135,17 @@ module picolor {
 
 			return brewerPairedScales;
 		}
-
-		private setPalette(ev) {
-			var x = ev.pageX - this.offset.left;
-			var y = ev.pageY - this.offset.top;
+		private resolvePaletteIndex(mousex: number, mousey: number): number {
+			var x = mousex - this.offset.left;
+			var y = mousey - this.offset.top;
 
 			var numPals = this.sequentialPalettes.length + this.divergentPalettes.length + this.qualitativePaletteCount;
 			var totWidth = this.margin * 2 + this.w * numPals + this.pad * (numPals - 1);
 
-			this.selectedPalIdx = Math.floor(x / (totWidth / numPals));
+			return Math.floor(x / (totWidth / numPals));
+		}
+		private setPalette(ev) {
+			this.selectedPalIdx = this.resolvePaletteIndex(ev.clientX, ev.clientY);
 			$('#' + this.containerDivID).trigger('oncolorchange', [this.palette]);
 			this.draw();
 		}
@@ -267,11 +285,11 @@ module picolor {
 			}
 		}
 
-		private drawPaletteSelection(context: CanvasRenderingContext2D) {
+		private drawPaletteBorder(palIdx: number, context: CanvasRenderingContext2D, strokeStyle: any) {
 			context.globalAlpha = 1;
-			context.strokeStyle = 'black';
+			context.strokeStyle = strokeStyle;
 			context.lineWidth = 1.5;
-			context.strokeRect(this.margin - 2 + this.selectedPalIdx * (this.w + this.pad), this.margin - 2, this.w + 4, this.h * this.categoryCount + 4);
+			context.strokeRect(this.margin - 2 + palIdx * (this.w + this.pad), this.margin - 2, this.w + 4, this.h * this.categoryCount + 4);
 		}
 
 		private drawTransparencySelection(context: CanvasRenderingContext2D) {
@@ -300,9 +318,11 @@ module picolor {
 			this.drawPalettes(context, palMatrix);
 
 			// draw selections
-			this.drawPaletteSelection(context);
+			this.drawPaletteBorder(this.selectedPalIdx, context, 'black');
 			this.drawTransparencySelection(context);
 			this.drawLightnessSelection(context);
+
+
 		}
 	}
 }

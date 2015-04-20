@@ -2,7 +2,6 @@
 *.suo
 /bin/
 /obj/
-/src/picolor.js
 app.js
 example.js.map
 picolor.csproj.user
