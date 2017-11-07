@@ -1,0 +1,7 @@
+{
+  "name": "picolor-js",
+  "dependencies": {},
+  "globalDependencies": {
+    "chroma-js": "registry:dt/chroma-js#1.1.1+20160816205622"
+  }
+}

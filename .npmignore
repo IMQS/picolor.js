@@ -1,0 +1,6 @@
+.git/
+example/
+node_modules/
+src/
+tsconfig.json
+typings.json

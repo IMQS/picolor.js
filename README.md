@@ -1,5 +1,5 @@
 # picolor.js  
-JavaScript color picker controls optimized for picking map colors  
+JavaScript color picker for picking colors in LCH space. It is optimized for picking visually distinct colors for maps, but can be used for anything else.  
 
 ## Why not use a stock color picker?  
 Picking suitable colors for maps are hard, especially when it comes to selecting visually distinct colors for a range of values. picolor.js aims to ease that process by providing smart pre-set visually distinct colors and palettes.  
@@ -15,20 +15,16 @@ Picking suitable colors for maps are hard, especially when it comes to selecting
 
 ### Prerequisites  
 1. [node.js](https://nodejs.org/)  
-2. [node-typescript](https://www.npmjs.com/package/node-typescript) `npm install -g typescript`  
-3. [Java](https://java.com/en/download/) to run Google Closure Compiler  
-4. [GNU Make](https://www.gnu.org/software/make/)  
 
-### Building with make   
-1. `make clean`  
-2. `make`  
+### Build   
+1. `npm install`  
+2. `npm run build`  
 
 ## TODO  
-- Embed chroma.js inside picolor.js and picolor.min.js  
 - Make sizing configurable  
 - Single Picker: Use only canvas  
 - Palette Picker: Interpolate colors for qualitative palette where number of categories > 12  
-- Palette Picker: Lighten/darken palettes when user drags up/down  
+- Palette Picker: Lighten/darken palettes when user drags slider up/down  
 
 ## Useful links  
 [Color Brewer](http://colorbrewer2.com/)  
