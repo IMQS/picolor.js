@@ -1,7 +1,2 @@
-*.js.map
-*.suo
-/bin/
-/obj/
-app.js
-example.js.map
-picolor.csproj.user
+/node_modules/
+example/node_modules/
