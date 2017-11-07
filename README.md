@@ -4,12 +4,8 @@ JavaScript color picker for picking colors in LCH space. It is optimized for pic
 ## Why not use a stock color picker?  
 Picking suitable colors for maps are hard, especially when it comes to selecting visually distinct colors for a range of values. picolor.js aims to ease that process by providing smart pre-set visually distinct colors and palettes.  
 
-## Demos  
-
-[Basic Picker](http://jsfiddle.net/jacobriers/r4vzm2ha/2/)  
-[Color Wheel](http://jsfiddle.net/jacobriers/qew2htaa/)  
-[Basic Picker - Color Wheel Interaction](http://jsfiddle.net/jacobriers/hhsfj4tf/1/)  
-[Palette Picker](http://jsfiddle.net/jacobriers/xod1bvav/1/)  
+## Demo  
+[Color Wheel](https://codepen.io/JacoBriers/full/EjKgJQ/)  
 
 ## Build from source  
 
